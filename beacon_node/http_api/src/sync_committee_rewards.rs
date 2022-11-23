@@ -6,8 +6,6 @@ pub fn compute_sync_committee_rewards<T: BeaconChainTypes>(
     block: SignedBlindedBeaconBlock<T::EthSpec>,
 ) -> Result<SyncCommitteeRewards, Error> {
 
-
-    // Copy the structure of an existing API handler, e.g. get_lighthouse_block_rewards.
     let get_lighthouse_sync_committee_rewards = warp::path("lighthouse")
     .and(warp::path("analysis"))
     .and(warp::path("sync_committee_rewards"))
