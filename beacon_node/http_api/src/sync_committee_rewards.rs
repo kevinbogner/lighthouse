@@ -1,5 +1,14 @@
-// Copy the structure of an existing API handler, e.g. get_lighthouse_block_rewards.
+/* 
+1. API handler `compute_sync_committe_rewards`
+2. Load data using `chain` from `BeaconChain<T>`
+ 2.1 Load a block with `chain.get_blinded_block(block_root)`
+ 2.2 Load a state with `chain.get_state(state_root, None)`
+ 2.3 Convert a slot into the canonical block root from that slot: block_id.root(&chain)
+3. Compute rewards by calling functions from `consensus/state_processing`
+*/
 
+// ---1---
+// Copy the structure of an existing API handler, e.g. get_lighthouse_block_rewards.
 pub fn compute_sync_committee_rewards<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
     state: BeaconState<T::EthSpec>,
@@ -18,6 +27,8 @@ pub fn compute_sync_committee_rewards<T: BeaconChainTypes>(
     });
 }
 
+// ---2---
+// ---2.1---
 // Load a block with chain.get_blinded_block(block_root).
 pub fn get_blinded_block(
     &self,
@@ -26,6 +37,7 @@ pub fn get_blinded_block(
     Ok(self.store.get_blinded_block(block_root)?)
 }
 
+// ---2.2---
 // Load a state with chain.get_state(state_root, None)
 pub fn get_state(
     &self,
@@ -35,22 +47,29 @@ pub fn get_state(
     Ok(self.store.get_state(state_root, slot)?)
 }
 
+// ---2.3---
 // Convert a slot into the canonical block root from that slot: block_id.root(&chain).
-pub fn root(&self, chain: &BeaconChain<T>) -> Result<Option<Hash256>, Error> {
-    match self {
-        BlockId::Root(root) => Ok(Some(*root)),
-        BlockId::Slot(slot) => {
-            let root = chain
-                .store
-                .get_canonical_block_root(*slot)
-                .map_err(Error::BeaconChainError)?;
-            Ok(root)
-        }
-    }
+
+// ---3---
+// Once we have the block(s) and state that we need, we can compute the rewards using snippets of logic extracted from consensus/state_processing.
+// Call this function
+pub fn compute_sync_aggregate_rewards<T: EthSpec>(
+    state: &BeaconState<T>,
+    spec: &ChainSpec,
+) -> Result<(u64, u64), BlockProcessingError> {
+    let total_active_balance = state.get_total_active_balance()?;
+    let total_active_increments =
+        total_active_balance.safe_div(spec.effective_balance_increment)?;
+    let total_base_rewards = BaseRewardPerIncrement::new(total_active_balance, spec)?
+        .as_u64()
+        .safe_mul(total_active_increments)?;
+    let max_participant_rewards = total_base_rewards
+        .safe_mul(SYNC_REWARD_WEIGHT)?
+        .safe_div(WEIGHT_DENOMINATOR)?
+        .safe_div(T::slots_per_epoch())?;
+    let participant_reward = max_participant_rewards.safe_div(T::SyncCommitteeSize::to_u64())?;
+    let proposer_reward = participant_reward
+        .safe_mul(PROPOSER_WEIGHT)?
+        .safe_div(WEIGHT_DENOMINATOR.safe_sub(PROPOSER_WEIGHT)?)?;
+    Ok((participant_reward, proposer_reward))
 }
-
-//Once we have the block(s) and state that we need, we can compute the rewards using snippets of logic extracted from consensus/state_processing.
-
-//We want to avoid modifying consensus/state_processing because that code needs to be fast (no extra calculations) and correct (modifying it is medium-risk).
-
-//For some of the APIs we might want to use the BlockReplayer. This will be useful if we want to diff the pre-state against the post-state. In hindsight I think this will probably only be relevant for the attestation rewards API where we need to replay multiple blocks.
