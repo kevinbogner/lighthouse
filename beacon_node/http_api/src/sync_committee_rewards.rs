@@ -49,6 +49,12 @@ pub fn get_state(
 
 // ---2.3---
 // Convert a slot into the canonical block root from that slot: block_id.root(&chain).
+/*
+let canonical = chain
+    .block_root_at_slot(block.slot(), WhenSlotSkipped::None)
+    .map_err(warp_utils::reject::beacon_chain_error)?
+    .map_or(false, |canonical| root == canonical);
+*/
 
 // ---3---
 // Once we have the block(s) and state that we need, we can compute the rewards using snippets of logic extracted from consensus/state_processing.
