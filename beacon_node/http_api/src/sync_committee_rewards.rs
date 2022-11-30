@@ -9,7 +9,7 @@
 
 // ---1---
 // Copy the structure of an existing API handler, e.g. get_lighthouse_block_rewards.
-pub fn compute_sync_committee_rewards<T: BeaconChainTypes>(
+pub fn get_sync_committee_rewards<T: BeaconChainTypes>(
     chain: &BeaconChain<T>,
     state: BeaconState<T::EthSpec>,
     block: SignedBlindedBeaconBlock<T::EthSpec>,
@@ -59,7 +59,7 @@ let canonical = chain
 // ---3---
 // Once we have the block(s) and state that we need, we can compute the rewards using snippets of logic extracted from consensus/state_processing.
 // Call this function
-pub fn compute_sync_aggregate_rewards<T: EthSpec>(
+pub fn compute_sync_committee_rewards<T: EthSpec>(
     state: &BeaconState<T>,
     spec: &ChainSpec,
 ) -> Result<(u64, u64), BlockProcessingError> {
