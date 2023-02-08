@@ -41,6 +41,10 @@ pub struct ExecutionPayload<T: EthSpec> {
     pub block_hash: ExecutionBlockHash,
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions<T>,
+    /* EIP-6110
+    #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
+    pub deposit_receipts: VariableList<DepositReceipt, T::MaxDepositReceipts>,
+     */
 }
 
 impl<T: EthSpec> ExecutionPayload<T> {

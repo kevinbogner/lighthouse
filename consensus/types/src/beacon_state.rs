@@ -282,6 +282,11 @@ where
     #[superstruct(only(Merge))]
     pub latest_execution_payload_header: ExecutionPayloadHeader<T>,
 
+    /* EIP-6110
+    // EIP-6110
+    #[superstruct(only(Altair, Merge))]
+    pub pending_deposits: VariableList<IndexedDepositData, T::PENDING_DEPOSITS_LIMIT>,
+    */
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
     #[ssz(skip_serializing, skip_deserializing)]
