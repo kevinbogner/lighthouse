@@ -1,7 +1,10 @@
 use super::*;
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
-use types::{EthSpec, ExecutionBlockHash, FixedVector, Transaction, Unsigned, VariableList};
+use types::{
+    execution_payload::DepositReceipt, EthSpec, ExecutionBlockHash, FixedVector, Transaction,
+    Unsigned, VariableList,
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,6 +83,7 @@ pub struct JsonExecutionPayloadHeaderV1<T: EthSpec> {
     pub base_fee_per_gas: Uint256,
     pub block_hash: ExecutionBlockHash,
     pub transactions_root: Hash256,
+    pub deposit_receipts_root: Hash256, // EIP-6110
 }
 
 impl<T: EthSpec> From<JsonExecutionPayloadHeaderV1<T>> for ExecutionPayloadHeader<T> {
@@ -100,6 +104,7 @@ impl<T: EthSpec> From<JsonExecutionPayloadHeaderV1<T>> for ExecutionPayloadHeade
             base_fee_per_gas,
             block_hash,
             transactions_root,
+            deposit_receipts_root, // EIP-6110
         } = e;
 
         Self {
@@ -117,6 +122,7 @@ impl<T: EthSpec> From<JsonExecutionPayloadHeaderV1<T>> for ExecutionPayloadHeade
             base_fee_per_gas,
             block_hash,
             transactions_root,
+            deposit_receipts_root, // EIP-6110
         }
     }
 }
@@ -147,6 +153,10 @@ pub struct JsonExecutionPayloadV1<T: EthSpec> {
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions:
         VariableList<Transaction<T::MaxBytesPerTransaction>, T::MaxTransactionsPerPayload>,
+    // EIP-6110
+    #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
+    pub deposit_receipts:
+        VariableList<DepositReceipt<T::MaxBytesPerDepositReceipt>, T::MaxDepositReceiptsPerPayload>,
 }
 
 impl<T: EthSpec> From<ExecutionPayload<T>> for JsonExecutionPayloadV1<T> {
@@ -167,6 +177,7 @@ impl<T: EthSpec> From<ExecutionPayload<T>> for JsonExecutionPayloadV1<T> {
             base_fee_per_gas,
             block_hash,
             transactions,
+            deposit_receipts,
         } = e;
 
         Self {
@@ -184,6 +195,7 @@ impl<T: EthSpec> From<ExecutionPayload<T>> for JsonExecutionPayloadV1<T> {
             base_fee_per_gas,
             block_hash,
             transactions,
+            deposit_receipts, // EIP-6110
         }
     }
 }
@@ -206,6 +218,7 @@ impl<T: EthSpec> From<JsonExecutionPayloadV1<T>> for ExecutionPayload<T> {
             base_fee_per_gas,
             block_hash,
             transactions,
+            deposit_receipts, // EIP-6110
         } = e;
 
         Self {
@@ -223,6 +236,7 @@ impl<T: EthSpec> From<JsonExecutionPayloadV1<T>> for ExecutionPayload<T> {
             base_fee_per_gas,
             block_hash,
             transactions,
+            deposit_receipts, // EIP-6110
         }
     }
 }

@@ -1514,6 +1514,16 @@ impl<T: EthSpec> ExecutionLayer<T> {
         )
         .map_err(ApiError::DeserializeTransactions)?;
 
+        // EIP-6110
+        let deposit_receipts = VariableList::new(
+            block
+                .deposit_receipts
+                .into_iter()
+                .map(|receipt| VariableList::new(receipt.rlp().to_vec()))
+                .collect::<Result<_, _>>()
+                .map_err(ApiError::DeserializeTransaction)?, //TODO Fix error type
+        );
+
         Ok(Some(ExecutionPayload {
             parent_hash: block.parent_hash,
             fee_recipient: block.fee_recipient,
@@ -1529,6 +1539,7 @@ impl<T: EthSpec> ExecutionLayer<T> {
             base_fee_per_gas: block.base_fee_per_gas,
             block_hash: block.block_hash,
             transactions,
+            deposit_receipts,
         }))
     }
 

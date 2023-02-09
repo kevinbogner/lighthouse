@@ -95,10 +95,12 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     type GasLimitDenominator: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MinGasLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxExtraDataBytes: Unsigned + Clone + Sync + Send + Debug + PartialEq;
-    /* EIP-6110
+
+    // EIP-6110
     type MaxDepositReceiptsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
-    type PendingDepositsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
-     */
+    type MaxBytesPerDepositReceipt: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type PendingDepositReceiptsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+
     /*
      * Derived values (set these CAREFULLY)
      */
@@ -276,10 +278,10 @@ impl EthSpec for MainnetEthSpec {
     type SyncSubcommitteeSize = U128; // 512 committee size / 4 sync committee subnet count
     type MaxPendingAttestations = U4096; // 128 max attestations * 32 slots per epoch
     type SlotsPerEth1VotingPeriod = U2048; // 64 epochs * 32 slots per epoch
-                                           /* EIP-6110
-                                           type MaxDepositReceiptsPerPayload = U8192
-                                           type PendingDepositReceiptsLimit = U4294967296
-                                            */
+    // EIP-6110 check these values
+    type MaxDepositReceiptsPerPayload = U8192;
+    type PendingDepositReceiptsLimit = U8192;
+    type MaxBytesPerDepositReceipt = U1048576;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -324,10 +326,11 @@ impl EthSpec for MinimalEthSpec {
         BytesPerLogsBloom,
         GasLimitDenominator,
         MinGasLimit,
-        MaxExtraDataBytes /* EIP-6110
-                          type MaxDepositReceiptsPerPayload = U8192
-                          type PendingDepositReceiptsLimit = U4294967296
-                           */
+        MaxExtraDataBytes,
+        // EIP-6110
+        MaxDepositReceiptsPerPayload,
+        PendingDepositReceiptsLimit,
+        MaxBytesPerDepositReceipt
     });
 
     fn default_spec() -> ChainSpec {
@@ -372,10 +375,10 @@ impl EthSpec for GnosisEthSpec {
     type SyncSubcommitteeSize = U128; // 512 committee size / 4 sync committee subnet count
     type MaxPendingAttestations = U2048; // 128 max attestations * 16 slots per epoch
     type SlotsPerEth1VotingPeriod = U1024; // 64 epochs * 16 slots per epoch
-                                           /* EIP-6110
-                                           type MaxDepositReceiptsPerPayload = U8192
-                                           type PendingDepositReceiptsLimit = U4294967296
-                                            */
+    // EIP-6110 check these values
+    type MaxDepositReceiptsPerPayload = U8192;
+    type PendingDepositReceiptsLimit = U8192;
+    type MaxBytesPerDepositReceipt = U8192;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::gnosis()

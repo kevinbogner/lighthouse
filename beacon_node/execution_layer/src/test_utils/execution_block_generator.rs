@@ -89,6 +89,7 @@ impl<T: EthSpec> Block<T> {
                 base_fee_per_gas: payload.base_fee_per_gas,
                 block_hash: payload.block_hash,
                 transactions: vec![],
+                deposit_receipts: vec![], // EIP-6110
             }),
             Block::PoW(_) => None,
         }
@@ -477,6 +478,7 @@ impl<T: EthSpec> ExecutionBlockGenerator<T> {
                     base_fee_per_gas: Uint256::one(),
                     block_hash: ExecutionBlockHash::zero(),
                     transactions: vec![].into(),
+                    deposit_receipts: vec![].into(), // EIP-6110
                 };
 
                 execution_payload.block_hash =

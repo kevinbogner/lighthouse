@@ -33,9 +33,8 @@ pub struct ExecutionPayloadHeader<T: EthSpec> {
     pub base_fee_per_gas: Uint256,
     pub block_hash: ExecutionBlockHash,
     pub transactions_root: Hash256,
-    /* EIP-6110
+    // EIP-6110
     pub deposit_receipts_root: Hash256,
-     */
 }
 
 impl<T: EthSpec> ExecutionPayloadHeader<T> {
@@ -61,9 +60,7 @@ impl<'a, T: EthSpec> From<&'a ExecutionPayload<T>> for ExecutionPayloadHeader<T>
             base_fee_per_gas: payload.base_fee_per_gas,
             block_hash: payload.block_hash,
             transactions_root: payload.transactions.tree_hash_root(),
-            /* EIP-6110
-            deposit_receipts_root: payload.deposit_receipts_root,
-             */
+            deposit_receipts_root: payload.transactions.tree_hash_root(), // EIP-6110 - TODO: implement
         }
     }
 }

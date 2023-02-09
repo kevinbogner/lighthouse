@@ -74,6 +74,7 @@ pub mod voluntary_exit;
 #[macro_use]
 pub mod slot_epoch_macros;
 pub mod config_and_preset;
+pub mod eip6110; // EIP-6110
 pub mod execution_block_header;
 pub mod fork_context;
 pub mod participation_flags;
@@ -129,6 +130,7 @@ pub use crate::eth1_data::Eth1Data;
 pub use crate::eth_spec::EthSpecId;
 pub use crate::execution_block_hash::ExecutionBlockHash;
 pub use crate::execution_block_header::ExecutionBlockHeader;
+pub use crate::execution_payload::{DepositReceipt, DepositReceipts}; // EIP-6110
 pub use crate::execution_payload::{ExecutionPayload, Transaction, Transactions};
 pub use crate::execution_payload_header::ExecutionPayloadHeader;
 pub use crate::fork::Fork;

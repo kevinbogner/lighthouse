@@ -12,6 +12,13 @@ pub type Transactions<T> = VariableList<
     <T as EthSpec>::MaxTransactionsPerPayload,
 >;
 
+// EIP-6110
+pub type DepositReceipt<N> = VariableList<u8, N>;
+pub type DepositReceipts<T> = VariableList<
+    DepositReceipt<<T as EthSpec>::MaxBytesPerDepositReceipt>,
+    <T as EthSpec>::MaxDepositReceiptsPerPayload,
+>;
+
 #[cfg_attr(feature = "arbitrary-fuzz", derive(arbitrary::Arbitrary))]
 #[derive(
     Default, Debug, Clone, Serialize, Deserialize, Encode, Decode, TreeHash, TestRandom, Derivative,
@@ -41,10 +48,9 @@ pub struct ExecutionPayload<T: EthSpec> {
     pub block_hash: ExecutionBlockHash,
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions<T>,
-    /* EIP-6110
+    // EIP-6110
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
-    pub deposit_receipts: VariableList<DepositReceipt, T::MaxDepositReceipts>,
-     */
+    pub deposit_receipts: DepositReceipts<T>,
 }
 
 impl<T: EthSpec> ExecutionPayload<T> {
