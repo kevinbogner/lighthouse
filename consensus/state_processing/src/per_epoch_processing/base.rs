@@ -38,6 +38,9 @@ pub fn process_epoch<T: EthSpec>(
     // Rewards and Penalties.
     process_rewards_and_penalties(state, &mut validator_statuses, spec)?;
 
+    // EIP-6110
+    // process_pending_deposits(state);
+
     // Registry Updates.
     process_registry_updates(state, spec)?;
 
