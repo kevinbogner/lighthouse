@@ -4,7 +4,7 @@ use safe_arith::SafeArith;
 use serde_derive::{Deserialize, Serialize};
 use ssz_types::typenum::{
     bit::B0, UInt, Unsigned, U0, U1024, U1048576, U1073741824, U1099511627776, U128, U16,
-    U16777216, U2, U2048, U256, U32, U4, U4096, U512, U625, U64, U65536, U8, U8192,
+    U16777216, U2, U2048, U256, U32, U4, U4096, U4294967296, U512, U625, U64, U65536, U8, U8192,
 };
 use std::fmt::{self, Debug};
 use std::str::FromStr;
@@ -277,9 +277,9 @@ impl EthSpec for MainnetEthSpec {
     type SyncSubcommitteeSize = U128; // 512 committee size / 4 sync committee subnet count
     type MaxPendingAttestations = U4096; // 128 max attestations * 32 slots per epoch
     type SlotsPerEth1VotingPeriod = U2048; // 64 epochs * 32 slots per epoch
-                                           // EIP-6110 check these values
+                                           // TODO: EIP-6110 check MaxBytesPerDepositReceipt value
     type MaxDepositReceiptsPerPayload = U8192;
-    type PendingDepositsLimit = U8192;
+    type PendingDepositsLimit = U4294967296;
     type MaxBytesPerDepositReceipt = U1048576;
 
     fn default_spec() -> ChainSpec {
@@ -374,8 +374,8 @@ impl EthSpec for GnosisEthSpec {
     type SyncSubcommitteeSize = U128; // 512 committee size / 4 sync committee subnet count
     type MaxPendingAttestations = U2048; // 128 max attestations * 16 slots per epoch
     type SlotsPerEth1VotingPeriod = U1024; // 64 epochs * 16 slots per epoch
-                                           // EIP-6110 check these values
-    type PendingDepositsLimit = U8192; // 2**32 = U4294967296
+                                           // TODO: EIP-6110 check MaxBytesPerDepositReceipt value
+    type PendingDepositsLimit = U4294967296; // 2**32 = U4294967296
     type MaxDepositReceiptsPerPayload = U8192;
     type MaxBytesPerDepositReceipt = U8192;
 
