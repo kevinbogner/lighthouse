@@ -1,21 +1,9 @@
 use crate::*;
+use serde::{Deserialize, Serialize};
 
-/* EIP-6110
-class DepositReceipt(Container):
-    pubkey: BLSPubkey
-    withdrawal_credentials: Bytes32
-    amount: Gwei
-    signature: BLSSignature
-    index: uint64
+// EIP-6110
 
-class IndexedDepositData(Container):
-    pubkey: BLSPubkey
-    withdrawal_credentials: Bytes32
-    amount: Gwei
-    index: uint64
-    epoch: Epoch
- */
-
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DepositReceipt {
     pub pubkey: PublicKey,
     pub withdrawal_credentials: Hash256,
@@ -24,6 +12,7 @@ pub struct DepositReceipt {
     pub index: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IndexedDepositData {
     pub pubkey: PublicKey,
     pub withdrawal_credentials: Hash256,

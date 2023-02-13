@@ -21,6 +21,7 @@ use sensitive_url::SensitiveUrl;
 use serde::{Deserialize, Serialize};
 use slog::{crit, debug, error, info, trace, warn, Logger};
 use slot_clock::SlotClock;
+use ssz_types::VariableList;
 use std::collections::HashMap;
 use std::fmt;
 use std::future::Future;
@@ -1515,14 +1516,13 @@ impl<T: EthSpec> ExecutionLayer<T> {
         .map_err(ApiError::DeserializeTransactions)?;
 
         // EIP-6110
-        let deposit_receipts = VariableList::new(
-            block
-                .deposit_receipts
-                .into_iter()
-                .map(|receipt| VariableList::new(receipt.rlp().to_vec()))
-                .collect::<Result<_, _>>()
-                .map_err(ApiError::DeserializeTransaction)?, //TODO Fix error type
-        );
+        let deposit_receipts = block
+            .deposit_receipts
+            .into_iter()
+            .map(|deposit_receipt| {
+                VariableList::new(serde_json::to_vec(&deposit_receipt).unwrap()).unwrap()
+            })
+            .collect::<Vec<VariableList<u8, _>>>();
 
         Ok(Some(ExecutionPayload {
             parent_hash: block.parent_hash,
@@ -1539,7 +1539,7 @@ impl<T: EthSpec> ExecutionLayer<T> {
             base_fee_per_gas: block.base_fee_per_gas,
             block_hash: block.block_hash,
             transactions,
-            deposit_receipts,
+            deposit_receipts: VariableList::new(deposit_receipts).unwrap(),
         }))
     }
 

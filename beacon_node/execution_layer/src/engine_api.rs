@@ -5,7 +5,6 @@ pub use json_structures::TransitionConfigurationV1;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
-use types::execution_payload::DepositReceipt;
 pub use types::{
     Address, EthSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadHeader, FixedVector,
     Hash256, Uint256, VariableList,
@@ -139,7 +138,7 @@ pub struct ExecutionBlockWithTransactions<T: EthSpec> {
     #[serde(rename = "hash")]
     pub block_hash: ExecutionBlockHash,
     pub transactions: Vec<Transaction>,
-    pub deposit_receipts: Vec<DepositReceipt>, // EIP-6110
+    pub deposit_receipts: Vec<types::eip6110::DepositReceipt>, // EIP-6110
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

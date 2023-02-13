@@ -9,6 +9,7 @@ use crate::VerifySignatures;
 use safe_arith::SafeArith;
 use types::consts::altair::{PARTICIPATION_FLAG_WEIGHTS, PROPOSER_WEIGHT, WEIGHT_DENOMINATOR};
 
+// TODO: Modify according to EIP-6110
 pub fn process_operations<T: EthSpec, Payload: ExecPayload<T>>(
     state: &mut BeaconState<T>,
     block_body: BeaconBlockBodyRef<T, Payload>,

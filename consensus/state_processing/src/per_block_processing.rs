@@ -156,7 +156,7 @@ pub fn per_block_processing<T: EthSpec, Payload: ExecPayload<T>>(
     // previous block.
     if is_execution_enabled(state, block.body()) {
         let payload = block.body().execution_payload()?;
-        process_execution_payload(state, payload, spec)?;
+        process_execution_payload(state, payload, spec)?; // TODO: Replace with `process_withdrawals`, `process_execution_payload`, and `process_deposit_receipts` according to EIP-6110.
     }
 
     process_randao(state, block, verify_randao, ctxt, spec)?;
@@ -376,6 +376,8 @@ pub fn partially_verify_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
 /// Partially equivalent to the `process_execution_payload` function:
 ///
 /// https://github.com/ethereum/consensus-specs/blob/v1.1.5/specs/merge/beacon-chain.md#process_execution_payload
+
+// TODO: Modify according to EIP-6110
 pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
     state: &mut BeaconState<T>,
     payload: &Payload,
@@ -387,6 +389,50 @@ pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
 
     Ok(())
 }
+
+/* EIP-6110
+pub fn process_deposit_receipts<T: EthSpec>(
+    state: &mut BeaconState<T>,
+    payload: &ExecutionPayload,
+) {
+    let current_epoch = state.current_epoch();
+
+    let validator_pubkeys = state
+        .validators
+        .iter()
+        .map(|v| &v.pubkey)
+        .collect::<Vec<_>>();
+
+    for deposit_receipt in &payload.deposit_receipts {
+        let pubkey = &deposit_receipt.pubkey;
+        let amount = deposit_receipt.amount;
+
+        if !validator_pubkeys.contains(&pubkey) {
+            // Verify the deposit signature (proof of possession) which is not checked by the deposit contract
+            let deposit_message = DepositMessage {
+                pubkey: pubkey.clone(),
+                withdrawal_credentials: deposit_receipt.withdrawal_credentials.clone(),
+                amount,
+            };
+            let domain = compute_domain(DOMAIN_DEPOSIT); // Fork-agnostic domain since deposits are valid across forks
+            let signing_root = compute_signing_root(&deposit_message, domain);
+            if !bls_verify(&PublicKey::from(pubkey.as_bytes()), &signing_root, &deposit_receipt.signature) {
+                continue;
+            }
+        }
+
+        let pending_deposit = IndexedDepositData {
+            pubkey: pubkey.clone(),
+            withdrawal_credentials: deposit_receipt.withdrawal_credentials.clone(),
+            amount,
+            index: deposit_receipt.index,
+            epoch: current_epoch,
+        };
+
+        state.pending_deposits.push(pending_deposit);
+    }
+}
+*/
 
 /// These functions will definitely be called before the merge. Their entire purpose is to check if
 /// the merge has happened or if we're on the transition block. Thus we don't want to propagate

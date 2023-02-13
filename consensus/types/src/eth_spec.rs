@@ -99,7 +99,7 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     // EIP-6110
     type MaxDepositReceiptsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxBytesPerDepositReceipt: Unsigned + Clone + Sync + Send + Debug + PartialEq;
-    type PendingDepositReceiptsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type PendingDepositsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
     /*
      * Derived values (set these CAREFULLY)
@@ -229,12 +229,11 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
         Self::BytesPerLogsBloom::to_usize()
     }
 
-    /* EIP-6110
+    // EIP-6110
     /// Returns the `MAX_DEPOSIT_RECEIPTS_PER_PAYLOAD` constant for this specification.
     fn max_deposit_receipts_per_payload() -> usize {
         Self::MaxDepositReceiptsPerPayload::to_usize()
     }
-    */
 }
 
 /// Macro to inherit some type values from another EthSpec.
@@ -280,7 +279,7 @@ impl EthSpec for MainnetEthSpec {
     type SlotsPerEth1VotingPeriod = U2048; // 64 epochs * 32 slots per epoch
                                            // EIP-6110 check these values
     type MaxDepositReceiptsPerPayload = U8192;
-    type PendingDepositReceiptsLimit = U8192;
+    type PendingDepositsLimit = U8192;
     type MaxBytesPerDepositReceipt = U1048576;
 
     fn default_spec() -> ChainSpec {
@@ -329,7 +328,7 @@ impl EthSpec for MinimalEthSpec {
         MaxExtraDataBytes,
         // EIP-6110
         MaxDepositReceiptsPerPayload,
-        PendingDepositReceiptsLimit,
+        PendingDepositsLimit,
         MaxBytesPerDepositReceipt
     });
 
@@ -376,8 +375,8 @@ impl EthSpec for GnosisEthSpec {
     type MaxPendingAttestations = U2048; // 128 max attestations * 16 slots per epoch
     type SlotsPerEth1VotingPeriod = U1024; // 64 epochs * 16 slots per epoch
                                            // EIP-6110 check these values
+    type PendingDepositsLimit = U8192; // 2**32 = U4294967296
     type MaxDepositReceiptsPerPayload = U8192;
-    type PendingDepositReceiptsLimit = U8192;
     type MaxBytesPerDepositReceipt = U8192;
 
     fn default_spec() -> ChainSpec {
