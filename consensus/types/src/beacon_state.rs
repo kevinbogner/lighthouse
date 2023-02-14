@@ -282,11 +282,11 @@ where
     #[superstruct(only(Merge))]
     pub latest_execution_payload_header: ExecutionPayloadHeader<T>,
 
-    /* EIP-6110
-    // TODO: Implement - EIP-6110
-    #[superstruct(only(Altair, Merge))]
+    // EIP-6110
+    // TODO: Check SuperStruct and SerDe
+    // #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
     pub pending_deposits: VariableList<eip6110::IndexedDepositData, T::PendingDepositsLimit>,
-    */
+
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
     #[ssz(skip_serializing, skip_deserializing)]
@@ -383,6 +383,7 @@ impl<T: EthSpec> BeaconState<T> {
             pubkey_cache: PubkeyCache::default(),
             exit_cache: ExitCache::default(),
             tree_hash_cache: <_>::default(),
+            pending_deposits: VariableList::empty(),
         })
     }
 

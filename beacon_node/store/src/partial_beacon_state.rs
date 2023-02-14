@@ -317,6 +317,9 @@ macro_rules! impl_try_into_beacon_state {
             exit_cache: <_>::default(),
             tree_hash_cache: <_>::default(),
 
+            // EIP-6110
+            pending_deposits: <_>::default(),
+
             // Variant-specific fields
             $(
                 $extra_fields: $inner.$extra_fields

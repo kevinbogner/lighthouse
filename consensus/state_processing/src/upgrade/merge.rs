@@ -64,6 +64,8 @@ pub fn upgrade_to_bellatrix<E: EthSpec>(
         pubkey_cache: mem::take(&mut pre.pubkey_cache),
         exit_cache: mem::take(&mut pre.exit_cache),
         tree_hash_cache: mem::take(&mut pre.tree_hash_cache),
+        // EIP-6110
+        pending_deposits: mem::take(&mut pre.pending_deposits),
     });
 
     *pre_state = post;
