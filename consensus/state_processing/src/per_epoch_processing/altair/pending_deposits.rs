@@ -1,7 +1,12 @@
-pub fn get_validator_from_indexed_deposit_data(indexed_deposit_data: &IndexedDepositData) -> Validator {
+pub fn get_validator_from_indexed_deposit_data(
+    indexed_deposit_data: &IndexedDepositData,
+) -> Validator {
     let amount = indexed_deposit_data.amount;
-    let effective_balance = std::cmp::min(amount - amount % EFFECTIVE_BALANCE_INCREMENT, MAX_EFFECTIVE_BALANCE);
-    
+    let effective_balance = std::cmp::min(
+        amount - amount % EFFECTIVE_BALANCE_INCREMENT,
+        MAX_EFFECTIVE_BALANCE,
+    );
+
     Validator {
         pubkey: indexed_deposit_data.pubkey.clone(),
         withdrawal_credentials: indexed_deposit_data.withdrawal_credentials.clone(),
@@ -19,8 +24,12 @@ pub fn apply_indexed_deposit_data<T: EthSpec>(
 ) {
     let pubkey = &indexed_deposit_data.pubkey;
     let amount = indexed_deposit_data.amount;
-    let validator_pubkeys = state.validators.iter().map(|v| &v.pubkey).collect::<Vec<_>>();
-    
+    let validator_pubkeys = state
+        .validators
+        .iter()
+        .map(|v| &v.pubkey)
+        .collect::<Vec<_>>();
+
     if !validator_pubkeys.contains(&pubkey) {
         // Add validator and balance entries
         let validator = get_validator_from_indexed_deposit_data(indexed_deposit_data);
@@ -28,14 +37,13 @@ pub fn apply_indexed_deposit_data<T: EthSpec>(
         state.balances.push(amount);
     } else {
         // Increase balance by deposit amount
-        let index = ValidatorIndex(validator_pubkeys.iter().position(|&v| v == pubkey).unwrap() as u64);
+        let index =
+            ValidatorIndex(validator_pubkeys.iter().position(|&v| v == pubkey).unwrap() as u64);
         increase_balance(state, index, amount);
     }
 }
 
-pub fn process_pending_deposits<T: EthSpec>(
-    state: &mut BeaconState<T>,
-) {
+pub fn process_pending_deposits<T: EthSpec>(state: &mut BeaconState<T>) {
     let finalized_epoch = state.finalized_checkpoint.epoch;
     let slots_per_epoch = T::slots_per_epoch();
     let max_deposits = T::max_deposits();
@@ -64,4 +72,3 @@ pub fn process_pending_deposits<T: EthSpec>(
 
     state.pending_deposits = state.pending_deposits[next_pending_deposit_index..].to_vec();
 }
-

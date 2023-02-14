@@ -8,6 +8,7 @@ pub use inactivity_updates::process_inactivity_updates;
 pub use justification_and_finalization::process_justification_and_finalization;
 pub use participation_cache::ParticipationCache;
 pub use participation_flag_updates::process_participation_flag_updates;
+// pub use pending_deposits::process_pending_deposits;
 pub use rewards_and_penalties::process_rewards_and_penalties;
 pub use sync_committee_updates::process_sync_committee_updates;
 use types::{BeaconState, ChainSpec, EthSpec, RelativeEpoch};
@@ -16,6 +17,7 @@ pub mod inactivity_updates;
 pub mod justification_and_finalization;
 pub mod participation_cache;
 pub mod participation_flag_updates;
+// pub mod pending_deposits;
 pub mod rewards_and_penalties;
 pub mod sync_committee_updates;
 
@@ -41,6 +43,9 @@ pub fn process_epoch<T: EthSpec>(
 
     // Rewards and Penalties.
     process_rewards_and_penalties(state, &participation_cache, spec)?;
+
+    // EIP-6110
+    // process_pending_deposits(state)?;
 
     // Registry Updates.
     process_registry_updates(state, spec)?;
