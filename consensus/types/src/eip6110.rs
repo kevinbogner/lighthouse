@@ -22,7 +22,7 @@ pub struct DepositReceipt {
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode, TreeHash, TestRandom,
 )]
 pub struct IndexedDepositData {
-    pub pubkey: PublicKey,
+    pub pubkey: PublicKeyBytes,
     pub withdrawal_credentials: Hash256,
     pub amount: u64,
     pub index: u64,
