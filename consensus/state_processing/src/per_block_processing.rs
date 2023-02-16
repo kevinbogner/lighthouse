@@ -5,6 +5,7 @@ use safe_arith::{ArithError, SafeArith};
 use signature_sets::{block_proposal_signature_set, get_pubkey_from_state, randao_signature_set};
 use std::borrow::Cow;
 use tree_hash::TreeHash;
+use types::eip6110::IndexedDepositData;
 use types::*;
 
 pub use self::verify_attester_slashing::{
@@ -377,7 +378,7 @@ pub fn partially_verify_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
 ///
 /// https://github.com/ethereum/consensus-specs/blob/v1.1.5/specs/merge/beacon-chain.md#process_execution_payload
 
-// TODO: Modify according to EIP-6110
+// Modified according to EIP-6110
 pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
     state: &mut BeaconState<T>,
     payload: &Payload,
@@ -390,20 +391,21 @@ pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
     Ok(())
 }
 
-/* EIP-6110
-pub fn process_deposit_receipts<T: EthSpec>(
+/*
+// EIP-6110
+pub fn process_deposit_receipts<T: EthSpec, Payload: ExecPayload<T>>(
     state: &mut BeaconState<T>,
-    payload: &ExecutionPayload,
+    payload: &Payload,
 ) {
     let current_epoch = state.current_epoch();
 
     let validator_pubkeys = state
-        .validators
+        .validators()
         .iter()
         .map(|v| &v.pubkey)
         .collect::<Vec<_>>();
 
-    for deposit_receipt in &payload.deposit_receipts {
+    for deposit_receipt in &payload.deposit_receipts() {
         let pubkey = &deposit_receipt.pubkey;
         let amount = deposit_receipt.amount;
 
@@ -416,7 +418,11 @@ pub fn process_deposit_receipts<T: EthSpec>(
             };
             let domain = compute_domain(DOMAIN_DEPOSIT); // Fork-agnostic domain since deposits are valid across forks
             let signing_root = compute_signing_root(&deposit_message, domain);
-            if !bls_verify(&PublicKey::from(pubkey.as_bytes()), &signing_root, &deposit_receipt.signature) {
+            if !bls_verify(
+                &PublicKey::from(pubkey.as_bytes()),
+                &signing_root,
+                &deposit_receipt.signature,
+            ) {
                 continue;
             }
         }
@@ -429,7 +435,7 @@ pub fn process_deposit_receipts<T: EthSpec>(
             epoch: current_epoch,
         };
 
-        state.pending_deposits.push(pending_deposit);
+        state.pending_deposits().push(pending_deposit);
     }
 }
 */
