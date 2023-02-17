@@ -9,7 +9,7 @@ use crate::VerifySignatures;
 use safe_arith::SafeArith;
 use types::consts::altair::{PARTICIPATION_FLAG_WEIGHTS, PROPOSER_WEIGHT, WEIGHT_DENOMINATOR};
 
-// TODO: Modify according to EIP-6110
+// Modified according to EIP-6110
 pub fn process_operations<T: EthSpec, Payload: ExecPayload<T>>(
     state: &mut BeaconState<T>,
     block_body: BeaconBlockBodyRef<T, Payload>,
@@ -17,6 +17,13 @@ pub fn process_operations<T: EthSpec, Payload: ExecPayload<T>>(
     ctxt: &mut ConsensusContext<T>,
     spec: &ChainSpec,
 ) -> Result<(), BlockProcessingError> {
+    // Prevent potential underflow introduced by mixing two deposit processing flows
+    let unprocessed_deposits_count = state
+        .eth1_data()
+        .deposit_count
+        .saturating_sub(state.eth1_deposit_index()); // [New in EIP-6110]
+    let max_deposits = <T as EthSpec>::MaxDeposits::to_u64();
+
     process_proposer_slashings(
         state,
         block_body.proposer_slashings(),
@@ -32,6 +39,12 @@ pub fn process_operations<T: EthSpec, Payload: ExecPayload<T>>(
         spec,
     )?;
     process_attestations(state, block_body, verify_signatures, ctxt, spec)?;
+    // Verify that outstanding deposits are processed up to the maximum number of deposits
+    assert_eq!(
+        block_body.deposits().len() as usize,
+        std::cmp::min(max_deposits as usize, unprocessed_deposits_count as usize),
+        "Number of deposits in block does not match the minimum of the maximum number of deposits and the number of unprocessed deposits"
+    ); // [Modified in EIP-6110]
     process_deposits(state, block_body.deposits(), spec)?;
     process_exits(state, block_body.voluntary_exits(), verify_signatures, spec)?;
     Ok(())
