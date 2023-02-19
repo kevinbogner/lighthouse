@@ -78,6 +78,16 @@ pub fn initialize_beacon_state_from_eth1<T: EthSpec>(
     // Set genesis validators root for domain separation and chain versioning
     *state.genesis_validators_root_mut() = state.update_validators_tree_hash_cache()?;
 
+    // Declare current_sync_committee and next_sync_committee variables
+    let current_sync_committee = state.get_next_sync_committee(spec)?;
+    let next_sync_committee = state.get_next_sync_committee(spec)?;
+
+    /*
+    // Fill in sync committees
+    state.current_sync_committee = Some(current_sync_committee);
+    state.next_sync_committee = Some(next_sync_committee);
+    */
+
     Ok(state)
 }
 
