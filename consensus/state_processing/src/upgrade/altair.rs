@@ -106,7 +106,8 @@ pub fn upgrade_to_altair<E: EthSpec>(
         exit_cache: mem::take(&mut pre.exit_cache),
         tree_hash_cache: mem::take(&mut pre.tree_hash_cache),
         // EIP-6110
-        pending_deposits: mem::take(&mut pre.pending_deposits),
+        deposit_receipt_start_index: mem::take(&mut pre.deposit_receipt_start_index),
+        deposit_receipt_next_index: mem::take(&mut pre.deposit_receipt_next_index),
     });
 
     // Fill in previous epoch participation from the pre state's pending attestations.

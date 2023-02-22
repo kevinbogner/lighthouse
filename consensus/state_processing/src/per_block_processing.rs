@@ -157,8 +157,7 @@ pub fn per_block_processing<T: EthSpec, Payload: ExecPayload<T>>(
     // previous block.
     if is_execution_enabled(state, block.body()) {
         let payload = block.body().execution_payload()?;
-        process_execution_payload(state, payload, spec)?; // TODO: Add `process_deposit_receipts` according to EIP-6110.
-        process_deposit_receipts(state, payload, spec);
+        process_execution_payload(state, payload, spec)?;
     }
 
     process_randao(state, block, verify_randao, ctxt, spec)?;
@@ -392,7 +391,26 @@ pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
     Ok(())
 }
 
+/*
 // EIP-6110
+pub fn get_validator_from_deposit_receipt(deposit_receipt: &DepositReceipt) -> Validator {
+    let amount = deposit_receipt.amount;
+    let effective_balance = std::cmp::min(
+        amount - (amount % EFFECTIVE_BALANCE_INCREMENT),
+        T::MaxEffectiveBalance::to_u64(),
+    );
+
+    Validator {
+        pubkey: deposit_receipt.pubkey,
+        withdrawal_credentials: deposit_receipt.withdrawal_credentials,
+        activation_eligibility_epoch: FAR_FUTURE_EPOCH,
+        activation_epoch: FAR_FUTURE_EPOCH,
+        exit_epoch: FAR_FUTURE_EPOCH,
+        withdrawable_epoch: FAR_FUTURE_EPOCH,
+        effective_balance,
+    }
+}
+
 pub fn process_deposit_receipts<T: EthSpec, Payload: ExecPayload<T>>(
     state: &mut BeaconState<T>,
     payload: &Payload,
@@ -403,8 +421,8 @@ pub fn process_deposit_receipts<T: EthSpec, Payload: ExecPayload<T>>(
     let fork = spec.fork_at_epoch(current_epoch);
 
     let validator_pubkeys = state
-        .validators()
-        .iter()
+    .validators()
+    .iter()
         .map(|v| &v.pubkey)
         .collect::<Vec<_>>();
 
@@ -430,6 +448,7 @@ pub fn process_deposit_receipts<T: EthSpec, Payload: ExecPayload<T>>(
 
     Ok(())
 }
+*/
 
 /// These functions will definitely be called before the merge. Their entire purpose is to check if
 /// the merge has happened or if we're on the transition block. Thus we don't want to propagate
