@@ -47,6 +47,20 @@ pub fn process_operations<T: EthSpec, Payload: ExecPayload<T>>(
     ); // [Modified in EIP-6110]
     process_deposits(state, block_body.deposits(), spec)?;
     process_exits(state, block_body.voluntary_exits(), verify_signatures, spec)?;
+
+    // [New in EIP-6110]
+    if let Ok(payload) = block_body.execution_payload() {
+        if is_execution_enabled(state, block_body) {
+            process_deposit_receipts(
+                state,
+                payload.deposit_receipts(),
+                verify_signatures,
+                ctxt,
+                spec,
+            )?;
+        }
+    }
+
     Ok(())
 }
 

@@ -391,26 +391,30 @@ pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
     Ok(())
 }
 
-/*
-// EIP-6110
-pub fn get_validator_from_deposit_receipt(deposit_receipt: &DepositReceipt) -> Validator {
+// EIP-6110 TODO: Add fields
+pub fn get_validator_from_deposit_receipt<T: EthSpec, N: Unsigned>(
+    deposit_receipt: &DepositReceipt<N>,
+    spec: &ChainSpec,
+) -> Validator {
     let amount = deposit_receipt.amount;
     let effective_balance = std::cmp::min(
-        amount - (amount % EFFECTIVE_BALANCE_INCREMENT),
-        T::MaxEffectiveBalance::to_u64(),
+        amount.safe_sub(amount.safe_rem(spec.effective_balance_increment)),
+        spec.max_effective_balance,
     );
 
     Validator {
         pubkey: deposit_receipt.pubkey,
         withdrawal_credentials: deposit_receipt.withdrawal_credentials,
-        activation_eligibility_epoch: FAR_FUTURE_EPOCH,
-        activation_epoch: FAR_FUTURE_EPOCH,
-        exit_epoch: FAR_FUTURE_EPOCH,
-        withdrawable_epoch: FAR_FUTURE_EPOCH,
+        activation_eligibility_epoch: spec.far_future_epoch,
+        activation_epoch: spec.far_future_epoch,
+        exit_epoch: spec.far_future_epoch,
+        withdrawable_epoch: spec.far_future_epoch,
         effective_balance,
+        slashed: false,
     }
 }
 
+/*
 pub fn process_deposit_receipts<T: EthSpec, Payload: ExecPayload<T>>(
     state: &mut BeaconState<T>,
     payload: &Payload,
