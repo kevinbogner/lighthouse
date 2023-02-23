@@ -285,9 +285,7 @@ where
     // EIP-6110
     // TODO: Check SuperStruct and SerDe
     #[serde(with = "eth2_serde_utils::quoted_u64")]
-    pub deposit_receipt_start_index: u64,
-    #[serde(with = "eth2_serde_utils::quoted_u64")]
-    pub deposit_receipt_next_index: u64,
+    pub deposit_receipts_start_index: u64,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
@@ -385,8 +383,7 @@ impl<T: EthSpec> BeaconState<T> {
             pubkey_cache: PubkeyCache::default(),
             exit_cache: ExitCache::default(),
             tree_hash_cache: <_>::default(),
-            deposit_receipt_start_index: 0,
-            deposit_receipt_next_index: 0,
+            deposit_receipts_start_index: 0,
         })
     }
 

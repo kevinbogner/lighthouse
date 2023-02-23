@@ -53,7 +53,7 @@ pub trait ExecPayload<T: EthSpec>:
 
 impl<T: EthSpec> ExecPayload<T> for FullPayload<T> {
     fn deposit_receipts(&self) -> &Vec<DepositReceipt<T>> {
-        &self.deposit_receipts()
+        self.deposit_receipts()
     }
 
     fn block_type() -> BlockType {
@@ -95,7 +95,7 @@ impl<T: EthSpec> ExecPayload<T> for FullPayload<T> {
 
 impl<T: EthSpec> ExecPayload<T> for BlindedPayload<T> {
     fn deposit_receipts(&self) -> &Vec<DepositReceipt<T>> {
-        &self.deposit_receipts()
+        self.deposit_receipts()
     }
 
     fn block_type() -> BlockType {

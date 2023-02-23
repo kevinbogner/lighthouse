@@ -65,8 +65,7 @@ pub fn upgrade_to_bellatrix<E: EthSpec>(
         exit_cache: mem::take(&mut pre.exit_cache),
         tree_hash_cache: mem::take(&mut pre.tree_hash_cache),
         // EIP-6110
-        deposit_receipt_start_index: mem::take(&mut pre.deposit_receipt_start_index),
-        deposit_receipt_next_index: mem::take(&mut pre.deposit_receipt_next_index),
+        deposit_receipts_start_index: mem::take(&mut pre.deposit_receipts_start_index),
     });
 
     *pre_state = post;

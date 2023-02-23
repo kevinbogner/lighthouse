@@ -318,8 +318,7 @@ macro_rules! impl_try_into_beacon_state {
             tree_hash_cache: <_>::default(),
 
             // EIP-6110
-            deposit_receipt_start_index: <_>::default(),
-            deposit_receipt_next_index: <_>::default(),
+            deposit_receipts_start_index: <_>::default(),
 
             // Variant-specific fields
             $(

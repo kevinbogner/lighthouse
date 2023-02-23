@@ -475,7 +475,6 @@ pub fn is_execution_enabled<T: EthSpec, Payload: ExecPayload<T>>(
     state: &BeaconState<T>,
     body: BeaconBlockBodyRef<T, Payload>,
 ) -> bool {
-    // EIP-6110 process_deposit_receipts(state, block.body.execution_payload)
     is_merge_transition_block(state, body) || is_merge_transition_complete(state)
 }
 /// https://github.com/ethereum/consensus-specs/blob/dev/specs/merge/beacon-chain.md#compute_timestamp_at_slot
