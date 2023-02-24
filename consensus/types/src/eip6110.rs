@@ -11,7 +11,7 @@ use tree_hash_derive::TreeHash;
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode, TreeHash, TestRandom,
 )]
 pub struct DepositReceipt {
-    pub pubkey: PublicKey,
+    pub pubkey: PublicKeyBytes,
     pub withdrawal_credentials: Hash256,
     pub amount: u64,
     pub signature: Signature,

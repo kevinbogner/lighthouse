@@ -5,7 +5,7 @@ use safe_arith::{ArithError, SafeArith};
 use signature_sets::{block_proposal_signature_set, get_pubkey_from_state, randao_signature_set};
 use std::borrow::Cow;
 use tree_hash::TreeHash;
-use types::eip6110::IndexedDepositData;
+use types::eip6110::DepositReceipt;
 use types::*;
 
 pub use self::verify_attester_slashing::{
@@ -393,16 +393,16 @@ pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
 
 // EIP-6110 TODO: Add fields
 pub fn get_validator_from_deposit_receipt<T: EthSpec, N: Unsigned>(
-    deposit_receipt: &DepositReceipt<N>,
+    deposit_receipt: &DepositReceipt,
     spec: &ChainSpec,
-) -> Validator {
+) -> Result<Validator, ArithError> {
     let amount = deposit_receipt.amount;
-    let effective_balance = std::cmp::min(
-        amount.safe_sub(amount.safe_rem(spec.effective_balance_increment)),
-        spec.max_effective_balance,
-    );
+    let effective_balance = amount
+        .checked_sub(amount % spec.effective_balance_increment)
+        .ok_or(ArithError::Overflow)?
+        .min(spec.max_effective_balance);
 
-    Validator {
+    Ok(Validator {
         pubkey: deposit_receipt.pubkey,
         withdrawal_credentials: deposit_receipt.withdrawal_credentials,
         activation_eligibility_epoch: spec.far_future_epoch,
@@ -411,7 +411,7 @@ pub fn get_validator_from_deposit_receipt<T: EthSpec, N: Unsigned>(
         withdrawable_epoch: spec.far_future_epoch,
         effective_balance,
         slashed: false,
-    }
+    })
 }
 
 /*
