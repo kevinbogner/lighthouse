@@ -60,7 +60,7 @@ impl<'a, T: EthSpec> From<&'a ExecutionPayload<T>> for ExecutionPayloadHeader<T>
             base_fee_per_gas: payload.base_fee_per_gas,
             block_hash: payload.block_hash,
             transactions_root: payload.transactions.tree_hash_root(),
-            deposit_receipts_root: payload.transactions.tree_hash_root(), // EIP-6110 - TODO: implement
+            deposit_receipts_root: payload.deposit_receipts.tree_hash_root(), // EIP-6110
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::common::increase_balance;
 use crate::consensus_context::ConsensusContext;
 use errors::{BlockOperationError, BlockProcessingError, HeaderInvalid};
 use rayon::prelude::*;
@@ -391,8 +392,8 @@ pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
     Ok(())
 }
 
-// EIP-6110 TODO: Add fields
-pub fn get_validator_from_deposit_receipt<T: EthSpec, N: Unsigned>(
+// EIP-6110
+pub fn get_validator_from_deposit_receipt<T: EthSpec>(
     deposit_receipt: &DepositReceipt,
     spec: &ChainSpec,
 ) -> Result<Validator, ArithError> {
@@ -415,39 +416,78 @@ pub fn get_validator_from_deposit_receipt<T: EthSpec, N: Unsigned>(
 }
 
 /*
-pub fn process_deposit_receipts<T: EthSpec, Payload: ExecPayload<T>>(
+// TODO: Check parameters / Pubkey
+pub fn process_deposit_receipt<T: EthSpec>(
     state: &mut BeaconState<T>,
-    payload: &Payload,
+    deposit_receipt: &DepositReceipt,
     spec: &ChainSpec,
+    fork: &Fork,
+    genesis_validators_root: Hash256,
 ) -> Result<(), BlockProcessingError> {
-    let current_epoch = state.current_epoch();
-    let genesis_validators_root = state.genesis_validators_root();
-    let fork = spec.fork_at_epoch(current_epoch);
+    // TODO: Implement constant
+    const NOT_SET_DEPOSIT_RECEIPTS_START_INDEX: u64 = std::u64::MAX;
 
-    let validator_pubkeys = state
-    .validators()
-    .iter()
+    // Set deposit receipt start index
+    if *state.deposit_receipts_start_index() == NOT_SET_DEPOSIT_RECEIPTS_START_INDEX {
+        *state.deposit_receipts_start_index_mut() = deposit_receipt.index;
+    }
+
+    // Signify the end of transition to in-protocol deposit logic
+    if state.eth1_deposit_index() >= *state.deposit_receipts_start_index() {
+        *state.eth1_deposit_index_mut() = deposit_receipt.index + 1;
+    }
+
+    let pubkey = deposit_receipt.pubkey;
+    let amount = deposit_receipt.amount;
+
+    if !state
+        .validators()
+        .iter()
         .map(|v| &v.pubkey)
-        .collect::<Vec<_>>();
-
-    for deposit_receipt in &payload.deposit_receipts() {
-        let pubkey = &deposit_receipt.pubkey;
-        let amount = deposit_receipt.amount;
-
-        if !validator_pubkeys.contains(&pubkey) {
-            // Verify the deposit signature (proof of possession) which is not checked by the deposit contract
-            verify_deposit_signature(&deposit_receipt.data, spec);
-        }
-
-        let pending_deposit = IndexedDepositData {
-            pubkey: pubkey.clone(),
-            withdrawal_credentials: deposit_receipt.withdrawal_credentials.clone(),
-            amount,
-            index: deposit_receipt.index,
-            epoch: current_epoch,
+        .collect::<Vec<&PublicKey>>()
+        .contains(&&pubkey)
+    {
+        let deposit_message = DepositMessage {
+            pubkey: PublicKey::deserialize(&pubkey.to_bytes()).map_err(|e| {
+                BlockProcessingError::InvalidDeposit(format!(
+                    "Failed to convert public key bytes to public key: {:?}",
+                    e
+                ))
+            })?,
+            withdrawal_credentials: deposit_receipt.withdrawal_credentials,
+            amount: deposit_receipt.amount,
         };
 
-        state.pending_deposits().push(pending_deposit);
+        let domain = spec.get_domain(
+            state.current_epoch(),
+            Domain::Deposit,
+            &fork,
+            genesis_validators_root,
+        );
+
+        let signing_root = deposit_message.signing_root(domain);
+        // Initialize validator if the deposit signature is valid
+        if deposit_receipt.signature.verify(&pubkey, signing_root) {
+            let validator = get_validator_from_deposit_receipt(deposit_receipt, &spec)?;
+            state.validators().push(validator);
+            state.balances().push(amount);
+            state
+                .previous_epoch_participation()?
+                .push(ParticipationFlags::default());
+            state
+                .current_epoch_participation()?
+                .push(ParticipationFlags::default());
+            state.inactivity_scores()?.push(0);
+        }
+    } else {
+        // Increase balance by deposit amount
+        let index = Validator(
+            validator_pubkeys
+                .iter()
+                .position(|&p| p == &pubkey)
+                .unwrap(),
+        );
+        increase_balance(state, index, amount)?;
     }
 
     Ok(())

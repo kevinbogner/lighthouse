@@ -51,7 +51,7 @@ pub fn process_operations<T: EthSpec, Payload: ExecPayload<T>>(
     // [New in EIP-6110]
     if let Ok(payload) = block_body.execution_payload() {
         if is_execution_enabled(state, block_body) {
-            process_deposit_receipts(
+            process_deposit_receipt(
                 state,
                 payload.deposit_receipts(),
                 verify_signatures,
@@ -359,6 +359,7 @@ pub fn process_deposit<T: EthSpec>(
     deposit: &Deposit,
     spec: &ChainSpec,
     verify_merkle_proof: bool,
+    ctxt: &mut ConsensusContext<T>,
 ) -> Result<(), BlockProcessingError> {
     let deposit_index = state.eth1_deposit_index() as usize;
     if verify_merkle_proof {
@@ -411,6 +412,17 @@ pub fn process_deposit<T: EthSpec>(
         }
         if let Ok(inactivity_scores) = state.inactivity_scores_mut() {
             inactivity_scores.push(0)?;
+        }
+
+        // EIP-6110 - Merge in proposer indices from latest block roots / TODO: Add proposer_duties
+        if let Some(block_roots) = state.block_roots().last() {
+            let proposer_index = ctxt.get_proposer_index(state, spec)?;
+
+            /*
+            if let Some(proposer_duties) = state.current_epoch().compute_proposer_duties_from_state() {
+                proposer_duties[proposer_index as usize] = state.validators().len() as u64 - 1;
+            }
+            */
         }
     }
 
