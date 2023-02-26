@@ -383,7 +383,7 @@ impl<T: EthSpec> BeaconState<T> {
             pubkey_cache: PubkeyCache::default(),
             exit_cache: ExitCache::default(),
             tree_hash_cache: <_>::default(),
-            deposit_receipts_start_index: 0,
+            deposit_receipts_start_index: 0, // EIP-6110
         })
     }
 

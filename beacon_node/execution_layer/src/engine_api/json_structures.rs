@@ -177,7 +177,7 @@ impl<T: EthSpec> From<ExecutionPayload<T>> for JsonExecutionPayloadV1<T> {
             base_fee_per_gas,
             block_hash,
             transactions,
-            deposit_receipts,
+            deposit_receipts, // EIP-6110
         } = e;
 
         Self {

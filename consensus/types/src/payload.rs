@@ -48,10 +48,11 @@ pub trait ExecPayload<T: EthSpec>:
     fn block_hash(&self) -> ExecutionBlockHash;
     fn fee_recipient(&self) -> Address;
     fn gas_limit(&self) -> u64;
-    fn deposit_receipts(&self) -> &Vec<DepositReceipt<T>>;
+    fn deposit_receipts(&self) -> &Vec<DepositReceipt<T>>; // EIP-6110
 }
 
 impl<T: EthSpec> ExecPayload<T> for FullPayload<T> {
+    // EIP-6110
     fn deposit_receipts(&self) -> &Vec<DepositReceipt<T>> {
         self.deposit_receipts()
     }
@@ -94,6 +95,7 @@ impl<T: EthSpec> ExecPayload<T> for FullPayload<T> {
 }
 
 impl<T: EthSpec> ExecPayload<T> for BlindedPayload<T> {
+    // EIP-6110
     fn deposit_receipts(&self) -> &Vec<DepositReceipt<T>> {
         self.deposit_receipts()
     }
