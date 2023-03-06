@@ -1,4 +1,3 @@
-use crate::common::increase_balance;
 use crate::consensus_context::ConsensusContext;
 use errors::{BlockOperationError, BlockProcessingError, HeaderInvalid};
 use rayon::prelude::*;

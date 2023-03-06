@@ -414,15 +414,9 @@ pub fn process_deposit<T: EthSpec>(
             inactivity_scores.push(0)?;
         }
 
-        // EIP-6110 - Merge in proposer indices from latest block roots / TODO: Add proposer_duties
+        // EIP-6110 - Merge in proposer indices from latest block roots
         if let Some(block_roots) = state.block_roots().last() {
             let proposer_index = ctxt.get_proposer_index(state, spec)?;
-
-            /*
-            if let Some(proposer_duties) = state.current_epoch().compute_proposer_duties_from_state() {
-                proposer_duties[proposer_index as usize] = state.validators().len() as u64 - 1;
-            }
-            */
         }
     }
 
