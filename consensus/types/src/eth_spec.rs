@@ -99,7 +99,6 @@ pub trait EthSpec: 'static + Default + Sync + Send + Clone + Debug + PartialEq +
     // EIP-6110
     type MaxDepositReceiptsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type MaxBytesPerDepositReceipt: Unsigned + Clone + Sync + Send + Debug + PartialEq;
-    type PendingDepositsLimit: Unsigned + Clone + Sync + Send + Debug + PartialEq;
 
     /*
      * Derived values (set these CAREFULLY)
@@ -279,7 +278,6 @@ impl EthSpec for MainnetEthSpec {
     type SlotsPerEth1VotingPeriod = U2048; // 64 epochs * 32 slots per epoch
                                            // TODO: EIP-6110 check MaxBytesPerDepositReceipt value
     type MaxDepositReceiptsPerPayload = U8192;
-    type PendingDepositsLimit = U4294967296;
     type MaxBytesPerDepositReceipt = U1048576;
 
     fn default_spec() -> ChainSpec {
@@ -328,7 +326,6 @@ impl EthSpec for MinimalEthSpec {
         MaxExtraDataBytes,
         // EIP-6110
         MaxDepositReceiptsPerPayload,
-        PendingDepositsLimit,
         MaxBytesPerDepositReceipt
     });
 
@@ -375,7 +372,6 @@ impl EthSpec for GnosisEthSpec {
     type MaxPendingAttestations = U2048; // 128 max attestations * 16 slots per epoch
     type SlotsPerEth1VotingPeriod = U1024; // 64 epochs * 16 slots per epoch
                                            // TODO: EIP-6110 check MaxBytesPerDepositReceipt value
-    type PendingDepositsLimit = U4294967296; // 2**32 = U4294967296
     type MaxDepositReceiptsPerPayload = U8192;
     type MaxBytesPerDepositReceipt = U8192;
 
