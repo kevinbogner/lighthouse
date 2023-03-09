@@ -1539,7 +1539,7 @@ impl<T: EthSpec> ExecutionLayer<T> {
             base_fee_per_gas: block.base_fee_per_gas,
             block_hash: block.block_hash,
             transactions,
-            deposit_receipts: VariableList::new(deposit_receipts).unwrap(),
+            deposit_receipts,
         }))
     }
 

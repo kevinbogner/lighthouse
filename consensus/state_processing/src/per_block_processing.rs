@@ -392,106 +392,33 @@ pub fn process_execution_payload<T: EthSpec, Payload: ExecPayload<T>>(
 }
 
 // EIP-6110
-pub fn get_validator_from_deposit_receipt<T: EthSpec>(
-    deposit_receipt: &DepositReceipt,
-    spec: &ChainSpec,
-) -> Result<Validator, ArithError> {
-    let amount = deposit_receipt.amount;
-    let effective_balance = amount
-        .checked_sub(amount % spec.effective_balance_increment)
-        .ok_or(ArithError::Overflow)?
-        .min(spec.max_effective_balance);
-
-    Ok(Validator {
-        pubkey: deposit_receipt.pubkey,
-        withdrawal_credentials: deposit_receipt.withdrawal_credentials,
-        activation_eligibility_epoch: spec.far_future_epoch,
-        activation_epoch: spec.far_future_epoch,
-        exit_epoch: spec.far_future_epoch,
-        withdrawable_epoch: spec.far_future_epoch,
-        effective_balance,
-        slashed: false,
-    })
-}
-
-/*
-// TODO: Check parameters / Pubkey
+// TODO: Where to define constant? / Fix apply_deposit
+pub const UNSET_DEPOSIT_RECEIPTS_START_INDEX: u64 = std::u64::MAX;
 pub fn process_deposit_receipt<T: EthSpec>(
     state: &mut BeaconState<T>,
     deposit_receipt: &DepositReceipt,
-    spec: &ChainSpec,
-    fork: &Fork,
-    genesis_validators_root: Hash256,
 ) -> Result<(), BlockProcessingError> {
-    // TODO: Implement constant
-    const NOT_SET_DEPOSIT_RECEIPTS_START_INDEX: u64 = std::u64::MAX;
-
     // Set deposit receipt start index
-    if *state.deposit_receipts_start_index() == NOT_SET_DEPOSIT_RECEIPTS_START_INDEX {
+    if *state.deposit_receipts_start_index() == UNSET_DEPOSIT_RECEIPTS_START_INDEX {
         *state.deposit_receipts_start_index_mut() = deposit_receipt.index;
     }
 
-    // Signify the end of transition to in-protocol deposit logic
-    if state.eth1_deposit_index() >= *state.deposit_receipts_start_index() {
-        *state.eth1_deposit_index_mut() = deposit_receipt.index + 1;
-    }
+    apply_deposit(state, &deposit_receipt)
+}
 
-    let pubkey = deposit_receipt.pubkey;
+fn apply_deposit<T: EthSpec>(
+    state: &mut BeaconState<T>,
+    deposit_receipt: &DepositReceipt,
+) -> Result<(), BlockProcessingError> {
+    let pubkey = &deposit_receipt.pubkey;
+    let withdrawal_credentials = &deposit_receipt.withdrawal_credentials;
     let amount = deposit_receipt.amount;
+    let signature = &deposit_receipt.signature;
 
-    if !state
-        .validators()
-        .iter()
-        .map(|v| &v.pubkey)
-        .collect::<Vec<&PublicKey>>()
-        .contains(&&pubkey)
-    {
-        let deposit_message = DepositMessage {
-            pubkey: PublicKey::deserialize(&pubkey.to_bytes()).map_err(|e| {
-                BlockProcessingError::InvalidDeposit(format!(
-                    "Failed to convert public key bytes to public key: {:?}",
-                    e
-                ))
-            })?,
-            withdrawal_credentials: deposit_receipt.withdrawal_credentials,
-            amount: deposit_receipt.amount,
-        };
-
-        let domain = spec.get_domain(
-            state.current_epoch(),
-            Domain::Deposit,
-            &fork,
-            genesis_validators_root,
-        );
-
-        let signing_root = deposit_message.signing_root(domain);
-        // Initialize validator if the deposit signature is valid
-        if deposit_receipt.signature.verify(&pubkey, signing_root) {
-            let validator = get_validator_from_deposit_receipt(deposit_receipt, &spec)?;
-            state.validators().push(validator);
-            state.balances().push(amount);
-            state
-                .previous_epoch_participation()?
-                .push(ParticipationFlags::default());
-            state
-                .current_epoch_participation()?
-                .push(ParticipationFlags::default());
-            state.inactivity_scores()?.push(0);
-        }
-    } else {
-        // Increase balance by deposit amount
-        let index = Validator(
-            validator_pubkeys
-                .iter()
-                .position(|&p| p == &pubkey)
-                .unwrap(),
-        );
-        increase_balance(state, index, amount)?;
-    }
+    // ...
 
     Ok(())
 }
-*/
 
 /// These functions will definitely be called before the merge. Their entire purpose is to check if
 /// the merge has happened or if we're on the transition block. Thus we don't want to propagate
