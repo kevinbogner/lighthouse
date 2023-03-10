@@ -403,21 +403,14 @@ pub fn process_deposit_receipt<T: EthSpec>(
         *state.deposit_receipts_start_index_mut() = deposit_receipt.index;
     }
 
-    apply_deposit(state, &deposit_receipt)
-}
-
-fn apply_deposit<T: EthSpec>(
-    state: &mut BeaconState<T>,
-    deposit_receipt: &DepositReceipt,
-) -> Result<(), BlockProcessingError> {
+    // apply_deposit
+    let state = &mut state.clone();
     let pubkey = &deposit_receipt.pubkey;
     let withdrawal_credentials = &deposit_receipt.withdrawal_credentials;
     let amount = deposit_receipt.amount;
     let signature = &deposit_receipt.signature;
 
-    // ...
-
-    Ok(())
+    Result::Ok(())
 }
 
 /// These functions will definitely be called before the merge. Their entire purpose is to check if
