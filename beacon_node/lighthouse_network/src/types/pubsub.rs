@@ -12,8 +12,9 @@ use types::{
     Attestation, AttesterSlashing, EthSpec, ForkContext, ForkName, LightClientFinalityUpdate,
     LightClientOptimisticUpdate, ProposerSlashing, SignedAggregateAndProof, SignedBeaconBlock,
     SignedBeaconBlockAltair, SignedBeaconBlockBase, SignedBeaconBlockCapella,
-    SignedBeaconBlockDeneb, SignedBeaconBlockMerge, SignedBlobSidecar, SignedBlsToExecutionChange,
-    SignedContributionAndProof, SignedVoluntaryExit, SubnetId, SyncCommitteeMessage, SyncSubnetId,
+    SignedBeaconBlockDeneb, SignedBeaconBlockEip6110, SignedBeaconBlockMerge, SignedBlobSidecar,
+    SignedBlsToExecutionChange, SignedContributionAndProof, SignedVoluntaryExit, SubnetId,
+    SyncCommitteeMessage, SyncSubnetId,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -192,6 +193,10 @@ impl<T: EthSpec> PubsubMessage<T> {
                                     SignedBeaconBlockDeneb::from_ssz_bytes(data)
                                         .map_err(|e| format!("{:?}", e))?,
                                 ),
+                                Some(ForkName::Eip6110) => SignedBeaconBlock::<T>::Eip6110(
+                                    SignedBeaconBlockEip6110::from_ssz_bytes(data)
+                                        .map_err(|e| format!("{:?}", e))?,
+                                ),
                                 None => {
                                     return Err(format!(
                                         "Unknown gossipsub fork digest: {:?}",
@@ -203,7 +208,7 @@ impl<T: EthSpec> PubsubMessage<T> {
                     }
                     GossipKind::BlobSidecar(blob_index) => {
                         match fork_context.from_context_bytes(gossip_topic.fork_digest) {
-                            Some(ForkName::Deneb) => {
+                            Some(ForkName::Deneb) | Some(ForkName::Eip6110) => {
                                 let blob_sidecar = SignedBlobSidecar::from_ssz_bytes(data)
                                     .map_err(|e| format!("{:?}", e))?;
                                 Ok(PubsubMessage::BlobSidecar(Box::new((
@@ -275,6 +280,13 @@ impl<T: EthSpec> PubsubMessage<T> {
                                 .map_err(|e| format!("{:?}", e))?;
                         Ok(PubsubMessage::LightClientOptimisticUpdate(Box::new(
                             light_client_optimistic_update,
+                        )))
+                    }
+                    GossipKind::Eip6110 => {
+                        let eip6110 = SignedBeaconBlockEip6110::from_ssz_bytes(data)
+                            .map_err(|e| format!("{:?}", e))?;
+                        Ok(PubsubMessage::BeaconBlock(Arc::new(
+                            SignedBeaconBlock::Eip6110(eip6110),
                         )))
                     }
                 }

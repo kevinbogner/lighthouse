@@ -35,6 +35,12 @@ fn operations_deposit() {
 }
 
 #[test]
+fn operations_deposit_receipt() {
+    OperationsHandler::<MinimalEthSpec, DepositReceipt>::default().run();
+    OperationsHandler::<MainnetEthSpec, DepositReceipt>::default().run();
+}
+
+#[test]
 fn operations_exit() {
     OperationsHandler::<MinimalEthSpec, SignedVoluntaryExit>::default().run();
     OperationsHandler::<MainnetEthSpec, SignedVoluntaryExit>::default().run();
@@ -272,6 +278,10 @@ mod ssz_static {
             .run();
         SszStaticHandler::<BeaconBlockBodyDeneb<MainnetEthSpec>, MainnetEthSpec>::deneb_only()
             .run();
+        SszStaticHandler::<BeaconBlockBodyEip6110<MinimalEthSpec>, MinimalEthSpec>::eip6110_only()
+            .run();
+        SszStaticHandler::<BeaconBlockBodyEip6110<MainnetEthSpec>, MainnetEthSpec>::eip6110_only()
+            .run();
     }
 
     // Altair and later
@@ -336,6 +346,10 @@ mod ssz_static {
             .run();
         SszStaticHandler::<ExecutionPayloadDeneb<MainnetEthSpec>, MainnetEthSpec>::deneb_only()
             .run();
+        SszStaticHandler::<ExecutionPayloadEip6110<MinimalEthSpec>, MinimalEthSpec>::eip6110_only()
+            .run();
+        SszStaticHandler::<ExecutionPayloadEip6110<MainnetEthSpec>, MainnetEthSpec>::eip6110_only()
+            .run();
     }
 
     #[test]
@@ -352,6 +366,10 @@ mod ssz_static {
             ::deneb_only().run();
         SszStaticHandler::<ExecutionPayloadHeaderDeneb<MainnetEthSpec>, MainnetEthSpec>
             ::deneb_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderEip6110<MinimalEthSpec>, MinimalEthSpec>
+            ::eip6110_only().run();
+        SszStaticHandler::<ExecutionPayloadHeaderEip6110<MainnetEthSpec>, MainnetEthSpec>
+            ::eip6110_only().run();
     }
 
     #[test]

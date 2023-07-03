@@ -16,6 +16,30 @@ pub fn process_operations<T: EthSpec, Payload: AbstractExecPayload<T>>(
     ctxt: &mut ConsensusContext<T>,
     spec: &ChainSpec,
 ) -> Result<(), BlockProcessingError> {
+    let eth1_deposit_index_limit = std::cmp::min(
+        state.eth1_data().deposit_count,
+        state
+            .deposit_receipts_start_index()
+            .unwrap_or_else(|_| state.eth1_data().deposit_count),
+    );
+
+    let expected_deposit_count = if state.eth1_deposit_index() < eth1_deposit_index_limit {
+        let diff = eth1_deposit_index_limit
+            .checked_sub(state.eth1_deposit_index())
+            .ok_or(BlockProcessingError::DepositReceiptError)?;
+
+        std::cmp::min(
+            <T as EthSpec>::MaxDeposits::to_u64() as usize,
+            diff as usize,
+        ) as u64
+    } else {
+        0
+    };
+
+    if block_body.deposits().len() as u64 != expected_deposit_count {
+        return Err(BlockProcessingError::DepositReceiptError);
+    }
+
     process_proposer_slashings(
         state,
         block_body.proposer_slashings(),
@@ -31,11 +55,23 @@ pub fn process_operations<T: EthSpec, Payload: AbstractExecPayload<T>>(
         spec,
     )?;
     process_attestations(state, block_body, verify_signatures, ctxt, spec)?;
-    process_deposits(state, block_body.deposits(), spec)?;
     process_exits(state, block_body.voluntary_exits(), verify_signatures, spec)?;
 
     if let Ok(bls_to_execution_changes) = block_body.bls_to_execution_changes() {
         process_bls_to_execution_changes(state, bls_to_execution_changes, verify_signatures, spec)?;
+    }
+
+    if let Ok(payload) = block_body.execution_payload() {
+        if let Ok(deposit_receipts) = payload.deposit_receipts() {
+            for deposit_receipt in deposit_receipts.iter() {
+                process_deposit_receipt(state, deposit_receipt, spec)?;
+            }
+        }
+    }
+
+    // Only process deposits if expected_deposit_count is not zero.
+    if expected_deposit_count > 0 {
+        process_deposits(state, block_body.deposits(), spec)?;
     }
 
     Ok(())
@@ -257,7 +293,8 @@ pub fn process_attestations<T: EthSpec, Payload: AbstractExecPayload<T>>(
         BeaconBlockBodyRef::Altair(_)
         | BeaconBlockBodyRef::Merge(_)
         | BeaconBlockBodyRef::Capella(_)
-        | BeaconBlockBodyRef::Deneb(_) => {
+        | BeaconBlockBodyRef::Deneb(_)
+        | BeaconBlockBodyRef::Eip6110(_) => {
             altair::process_attestations(
                 state,
                 block_body.attestations(),

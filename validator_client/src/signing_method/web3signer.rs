@@ -28,6 +28,7 @@ pub enum ForkName {
     Bellatrix,
     Capella,
     Deneb,
+    Eip6110,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -98,6 +99,11 @@ impl<'a, T: EthSpec, Payload: AbstractExecPayload<T>> Web3SignerObject<'a, T, Pa
             }),
             BeaconBlock::Deneb(_) => Ok(Web3SignerObject::BeaconBlock {
                 version: ForkName::Deneb,
+                block: None,
+                block_header: Some(block.block_header()),
+            }),
+            BeaconBlock::Eip6110(_) => Ok(Web3SignerObject::BeaconBlock {
+                version: ForkName::Eip6110,
                 block: None,
                 block_header: Some(block.block_header()),
             }),

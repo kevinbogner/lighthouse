@@ -176,7 +176,7 @@ impl From<BeaconStateHash> for Hash256 {
 
 /// The state of the `BeaconChain` at some slot.
 #[superstruct(
-    variants(Base, Altair, Merge, Capella, Deneb),
+    variants(Base, Altair, Merge, Capella, Deneb, Eip6110),
     variant_attributes(
         derive(
             Derivative,
@@ -256,9 +256,9 @@ where
     pub current_epoch_attestations: VariableList<PendingAttestation<T>, T::MaxPendingAttestations>,
 
     // Participation (Altair and later)
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Eip6110))]
     pub previous_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Eip6110))]
     pub current_epoch_participation: VariableList<ParticipationFlags, T::ValidatorRegistryLimit>,
 
     // Finality
@@ -273,13 +273,13 @@ where
 
     // Inactivity
     #[serde(with = "ssz_types::serde_utils::quoted_u64_var_list")]
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Eip6110))]
     pub inactivity_scores: VariableList<u64, T::ValidatorRegistryLimit>,
 
     // Light-client sync committees
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Eip6110))]
     pub current_sync_committee: Arc<SyncCommittee<T>>,
-    #[superstruct(only(Altair, Merge, Capella, Deneb))]
+    #[superstruct(only(Altair, Merge, Capella, Deneb, Eip6110))]
     pub next_sync_committee: Arc<SyncCommittee<T>>,
 
     // Execution
@@ -298,17 +298,25 @@ where
         partial_getter(rename = "latest_execution_payload_header_deneb")
     )]
     pub latest_execution_payload_header: ExecutionPayloadHeaderDeneb<T>,
+    #[superstruct(
+        only(Eip6110),
+        partial_getter(rename = "latest_execution_payload_header_eip6110")
+    )]
+    pub latest_execution_payload_header: ExecutionPayloadHeaderEip6110<T>,
 
     // Capella
-    #[superstruct(only(Capella, Deneb), partial_getter(copy))]
+    #[superstruct(only(Capella, Deneb, Eip6110), partial_getter(copy))]
     #[serde(with = "serde_utils::quoted_u64")]
     pub next_withdrawal_index: u64,
-    #[superstruct(only(Capella, Deneb), partial_getter(copy))]
+    #[superstruct(only(Capella, Deneb, Eip6110), partial_getter(copy))]
     #[serde(with = "serde_utils::quoted_u64")]
     pub next_withdrawal_validator_index: u64,
     // Deep history valid from Capella onwards.
-    #[superstruct(only(Capella, Deneb))]
+    #[superstruct(only(Capella, Deneb, Eip6110))]
     pub historical_summaries: VariableList<HistoricalSummary, T::HistoricalRootsLimit>,
+    #[superstruct(only(Eip6110), partial_getter(copy))]
+    #[serde(with = "serde_utils::quoted_u64")]
+    pub deposit_receipts_start_index: u64,
 
     // Caching (not in the spec)
     #[serde(skip_serializing, skip_deserializing)]
@@ -437,6 +445,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Merge { .. } => ForkName::Merge,
             BeaconState::Capella { .. } => ForkName::Capella,
             BeaconState::Deneb { .. } => ForkName::Deneb,
+            BeaconState::Eip6110 { .. } => ForkName::Eip6110,
         }
     }
 
@@ -730,6 +739,9 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Deneb(state) => Ok(ExecutionPayloadHeaderRef::Deneb(
                 &state.latest_execution_payload_header,
             )),
+            BeaconState::Eip6110(state) => Ok(ExecutionPayloadHeaderRef::Eip6110(
+                &state.latest_execution_payload_header,
+            )),
         }
     }
 
@@ -745,6 +757,9 @@ impl<T: EthSpec> BeaconState<T> {
                 &mut state.latest_execution_payload_header,
             )),
             BeaconState::Deneb(state) => Ok(ExecutionPayloadHeaderRefMut::Deneb(
+                &mut state.latest_execution_payload_header,
+            )),
+            BeaconState::Eip6110(state) => Ok(ExecutionPayloadHeaderRefMut::Eip6110(
                 &mut state.latest_execution_payload_header,
             )),
         }
@@ -1176,6 +1191,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Merge(state) => (&mut state.validators, &mut state.balances),
             BeaconState::Capella(state) => (&mut state.validators, &mut state.balances),
             BeaconState::Deneb(state) => (&mut state.validators, &mut state.balances),
+            BeaconState::Eip6110(state) => (&mut state.validators, &mut state.balances),
         }
     }
 
@@ -1374,6 +1390,7 @@ impl<T: EthSpec> BeaconState<T> {
                 BeaconState::Merge(state) => Ok(&mut state.current_epoch_participation),
                 BeaconState::Capella(state) => Ok(&mut state.current_epoch_participation),
                 BeaconState::Deneb(state) => Ok(&mut state.current_epoch_participation),
+                BeaconState::Eip6110(state) => Ok(&mut state.current_epoch_participation),
             }
         } else if epoch == self.previous_epoch() {
             match self {
@@ -1382,6 +1399,7 @@ impl<T: EthSpec> BeaconState<T> {
                 BeaconState::Merge(state) => Ok(&mut state.previous_epoch_participation),
                 BeaconState::Capella(state) => Ok(&mut state.previous_epoch_participation),
                 BeaconState::Deneb(state) => Ok(&mut state.previous_epoch_participation),
+                BeaconState::Eip6110(state) => Ok(&mut state.previous_epoch_participation),
             }
         } else {
             Err(BeaconStateError::EpochOutOfBounds)
@@ -1688,6 +1706,7 @@ impl<T: EthSpec> BeaconState<T> {
             BeaconState::Merge(inner) => BeaconState::Merge(inner.clone()),
             BeaconState::Capella(inner) => BeaconState::Capella(inner.clone()),
             BeaconState::Deneb(inner) => BeaconState::Deneb(inner.clone()),
+            BeaconState::Eip6110(inner) => BeaconState::Eip6110(inner.clone()),
         };
         if config.committee_caches {
             *res.committee_caches_mut() = self.committee_caches().clone();
@@ -1857,6 +1876,7 @@ impl<T: EthSpec> CompareFields for BeaconState<T> {
             (BeaconState::Merge(x), BeaconState::Merge(y)) => x.compare_fields(y),
             (BeaconState::Capella(x), BeaconState::Capella(y)) => x.compare_fields(y),
             (BeaconState::Deneb(x), BeaconState::Deneb(y)) => x.compare_fields(y),
+            (BeaconState::Eip6110(x), BeaconState::Eip6110(y)) => x.compare_fields(y),
             _ => panic!("compare_fields: mismatched state variants",),
         }
     }
@@ -1950,6 +1970,9 @@ pub mod ssz_tagged_beacon_state {
                     body,
                 )?)),
                 ForkName::Deneb => Ok(BeaconState::Deneb(BeaconStateDeneb::from_ssz_bytes(body)?)),
+                ForkName::Eip6110 => Ok(BeaconState::Eip6110(BeaconStateEip6110::from_ssz_bytes(
+                    body,
+                )?)),
             }
         }
     }

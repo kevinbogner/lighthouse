@@ -168,6 +168,12 @@ pub struct ChainSpec {
     pub deneb_fork_epoch: Option<Epoch>,
 
     /*
+     * Eip6110 hard fork params
+     */
+    pub eip6110_fork_version: [u8; 4],
+    pub eip6110_fork_epoch: Option<Epoch>,
+
+    /*
      * Networking
      */
     pub boot_nodes: Vec<String>,
@@ -253,15 +259,18 @@ impl ChainSpec {
 
     /// Returns the name of the fork which is active at `epoch`.
     pub fn fork_name_at_epoch(&self, epoch: Epoch) -> ForkName {
-        match self.deneb_fork_epoch {
-            Some(fork_epoch) if epoch >= fork_epoch => ForkName::Deneb,
-            _ => match self.capella_fork_epoch {
-                Some(fork_epoch) if epoch >= fork_epoch => ForkName::Capella,
-                _ => match self.bellatrix_fork_epoch {
-                    Some(fork_epoch) if epoch >= fork_epoch => ForkName::Merge,
-                    _ => match self.altair_fork_epoch {
-                        Some(fork_epoch) if epoch >= fork_epoch => ForkName::Altair,
-                        _ => ForkName::Base,
+        match self.eip6110_fork_epoch {
+            Some(fork_epoch) if epoch >= fork_epoch => ForkName::Eip6110,
+            _ => match self.deneb_fork_epoch {
+                Some(fork_epoch) if epoch >= fork_epoch => ForkName::Deneb,
+                _ => match self.capella_fork_epoch {
+                    Some(fork_epoch) if epoch >= fork_epoch => ForkName::Capella,
+                    _ => match self.bellatrix_fork_epoch {
+                        Some(fork_epoch) if epoch >= fork_epoch => ForkName::Merge,
+                        _ => match self.altair_fork_epoch {
+                            Some(fork_epoch) if epoch >= fork_epoch => ForkName::Altair,
+                            _ => ForkName::Base,
+                        },
                     },
                 },
             },
@@ -276,6 +285,7 @@ impl ChainSpec {
             ForkName::Merge => self.bellatrix_fork_version,
             ForkName::Capella => self.capella_fork_version,
             ForkName::Deneb => self.deneb_fork_version,
+            ForkName::Eip6110 => self.eip6110_fork_version,
         }
     }
 
@@ -287,6 +297,7 @@ impl ChainSpec {
             ForkName::Merge => self.bellatrix_fork_epoch,
             ForkName::Capella => self.capella_fork_epoch,
             ForkName::Deneb => self.deneb_fork_epoch,
+            ForkName::Eip6110 => self.eip6110_fork_epoch,
         }
     }
 
@@ -298,6 +309,7 @@ impl ChainSpec {
             BeaconState::Merge(_) => self.inactivity_penalty_quotient_bellatrix,
             BeaconState::Capella(_) => self.inactivity_penalty_quotient_bellatrix,
             BeaconState::Deneb(_) => self.inactivity_penalty_quotient_bellatrix,
+            BeaconState::Eip6110(_) => self.inactivity_penalty_quotient_bellatrix,
         }
     }
 
@@ -312,6 +324,7 @@ impl ChainSpec {
             BeaconState::Merge(_) => self.proportional_slashing_multiplier_bellatrix,
             BeaconState::Capella(_) => self.proportional_slashing_multiplier_bellatrix,
             BeaconState::Deneb(_) => self.proportional_slashing_multiplier_bellatrix,
+            BeaconState::Eip6110(_) => self.proportional_slashing_multiplier_bellatrix,
         }
     }
 
@@ -326,6 +339,7 @@ impl ChainSpec {
             BeaconState::Merge(_) => self.min_slashing_penalty_quotient_bellatrix,
             BeaconState::Capella(_) => self.min_slashing_penalty_quotient_bellatrix,
             BeaconState::Deneb(_) => self.min_slashing_penalty_quotient_bellatrix,
+            BeaconState::Eip6110(_) => self.min_slashing_penalty_quotient_bellatrix,
         }
     }
 
@@ -631,6 +645,12 @@ impl ChainSpec {
             deneb_fork_epoch: None,
 
             /*
+             * Eip6110 hard fork params
+             */
+            eip6110_fork_version: [0x05, 0x00, 0x00, 0x00],
+            eip6110_fork_epoch: None,
+
+            /*
              * Network specific
              */
             boot_nodes: vec![],
@@ -698,6 +718,9 @@ impl ChainSpec {
             // Deneb
             deneb_fork_version: [0x04, 0x00, 0x00, 0x01],
             deneb_fork_epoch: None,
+            // Eip6110
+            eip6110_fork_version: [0x05, 0x00, 0x00, 0x01],
+            eip6110_fork_epoch: None,
             // Other
             network_id: 2, // lighthouse testnet network id
             deposit_chain_id: 5,
@@ -866,6 +889,12 @@ impl ChainSpec {
             deneb_fork_epoch: None,
 
             /*
+             * Eip6110 hard fork params
+             */
+            eip6110_fork_version: [0x05, 0x00, 0x00, 0x64],
+            eip6110_fork_epoch: None,
+
+            /*
              * Network specific
              */
             boot_nodes: vec![],
@@ -962,6 +991,14 @@ pub struct Config {
     #[serde(deserialize_with = "deserialize_fork_epoch")]
     pub deneb_fork_epoch: Option<MaybeQuoted<Epoch>>,
 
+    #[serde(default = "default_eip6110_fork_version")]
+    #[serde(with = "serde_utils::bytes_4_hex")]
+    eip6110_fork_version: [u8; 4],
+    #[serde(default)]
+    #[serde(serialize_with = "serialize_fork_epoch")]
+    #[serde(deserialize_with = "deserialize_fork_epoch")]
+    pub eip6110_fork_epoch: Option<MaybeQuoted<Epoch>>,
+
     #[serde(with = "serde_utils::quoted_u64")]
     seconds_per_slot: u64,
     #[serde(with = "serde_utils::quoted_u64")]
@@ -1008,6 +1045,11 @@ fn default_capella_fork_version() -> [u8; 4] {
 }
 
 fn default_deneb_fork_version() -> [u8; 4] {
+    // This value shouldn't be used.
+    [0xff, 0xff, 0xff, 0xff]
+}
+
+fn default_eip6110_fork_version() -> [u8; 4] {
     // This value shouldn't be used.
     [0xff, 0xff, 0xff, 0xff]
 }
@@ -1120,6 +1162,10 @@ impl Config {
             deneb_fork_epoch: spec
                 .deneb_fork_epoch
                 .map(|epoch| MaybeQuoted { value: epoch }),
+            eip6110_fork_version: spec.eip6110_fork_version,
+            eip6110_fork_epoch: spec
+                .eip6110_fork_epoch
+                .map(|epoch| MaybeQuoted { value: epoch }),
 
             seconds_per_slot: spec.seconds_per_slot,
             seconds_per_eth1_block: spec.seconds_per_eth1_block,
@@ -1170,6 +1216,8 @@ impl Config {
             capella_fork_version,
             deneb_fork_epoch,
             deneb_fork_version,
+            eip6110_fork_epoch,
+            eip6110_fork_version,
             seconds_per_slot,
             seconds_per_eth1_block,
             min_validator_withdrawability_delay,
@@ -1205,6 +1253,8 @@ impl Config {
             capella_fork_version,
             deneb_fork_epoch: deneb_fork_epoch.map(|q| q.value),
             deneb_fork_version,
+            eip6110_fork_epoch: eip6110_fork_epoch.map(|q| q.value),
+            eip6110_fork_version,
             seconds_per_slot,
             seconds_per_eth1_block,
             min_validator_withdrawability_delay,

@@ -2,15 +2,16 @@ use super::per_block_processing::{
     errors::BlockProcessingError, process_operations::process_deposit,
 };
 use crate::common::DepositDataTree;
+use crate::per_block_processing::UNSET_DEPOSIT_RECEIPTS_START_INDEX;
 use crate::upgrade::{
     upgrade_to_altair, upgrade_to_bellatrix, upgrade_to_capella, upgrade_to_deneb,
+    upgrade_to_eip6110,
 };
 use safe_arith::{ArithError, SafeArith};
 use tree_hash::TreeHash;
 use types::DEPOSIT_TREE_DEPTH;
 use types::*;
 
-/// Initialize a `BeaconState` from genesis data.
 pub fn initialize_beacon_state_from_eth1<T: EthSpec>(
     eth1_block_hash: Hash256,
     eth1_timestamp: u64,
@@ -20,7 +21,6 @@ pub fn initialize_beacon_state_from_eth1<T: EthSpec>(
 ) -> Result<BeaconState<T>, BlockProcessingError> {
     let genesis_time = eth2_genesis_time(eth1_timestamp, spec)?;
     let eth1_data = Eth1Data {
-        // Temporary deposit root
         deposit_root: Hash256::zero(),
         deposit_count: deposits.len() as u64,
         block_hash: eth1_block_hash,
@@ -42,13 +42,19 @@ pub fn initialize_beacon_state_from_eth1<T: EthSpec>(
 
     process_activations(&mut state, spec)?;
 
-    // To support testnets with Altair enabled from genesis, perform a possible state upgrade here.
-    // This must happen *after* deposits and activations are processed or the calculation of sync
-    // committees during the upgrade will fail. It's a bit cheeky to do this instead of having
-    // separate Altair genesis initialization logic, but it turns out that our
-    // use of `BeaconBlock::empty` in `BeaconState::new` is sufficient to correctly initialise
-    // the `latest_block_header` as per:
-    // https://github.com/ethereum/eth2.0-specs/pull/2323
+    // Now that we have our validators, initialize the caches (including the committees)
+    state.build_all_caches(spec)?;
+
+    // Set genesis validators root for domain separation and chain versioning
+    *state.genesis_validators_root_mut() = state.update_validators_tree_hash_cache()?;
+
+    // Set fork version to EIP6110
+    state.fork_mut().previous_version = spec.eip6110_fork_version;
+    state.fork_mut().current_version = spec.eip6110_fork_version;
+
+    // Add deposit_receipts_start_index field with the value UNSET_DEPOSIT_RECEIPTS_START_INDEX
+    *state.deposit_receipts_start_index_mut()? = UNSET_DEPOSIT_RECEIPTS_START_INDEX;
+
     if spec
         .altair_fork_epoch
         .map_or(false, |fork_epoch| fork_epoch == T::genesis_epoch())
@@ -105,16 +111,27 @@ pub fn initialize_beacon_state_from_eth1<T: EthSpec>(
 
         // Override latest execution payload header.
         // See https://github.com/ethereum/consensus-specs/blob/dev/specs/deneb/beacon-chain.md#testing
-        if let Some(ExecutionPayloadHeader::Deneb(header)) = execution_payload_header {
-            *state.latest_execution_payload_header_deneb_mut()? = header;
+        if let Some(ExecutionPayloadHeader::Deneb(ref header)) = execution_payload_header {
+            *state.latest_execution_payload_header_deneb_mut()? = header.clone();
         }
     }
 
-    // Now that we have our validators, initialize the caches (including the committees)
-    state.build_all_caches(spec)?;
+    // Upgrade to eip6110 if configured from genesis
+    if spec
+        .eip6110_fork_epoch
+        .map_or(false, |fork_epoch| fork_epoch == T::genesis_epoch())
+    {
+        upgrade_to_eip6110(&mut state, spec)?;
 
-    // Set genesis validators root for domain separation and chain versioning
-    *state.genesis_validators_root_mut() = state.update_validators_tree_hash_cache()?;
+        // Remove intermediate Eip4844 fork from `state.fork`.
+        state.fork_mut().previous_version = spec.eip6110_fork_version;
+
+        // Override latest execution payload header.
+        // See https://github.com/ethereum/consensus-specs/blob/dev/specs/_features/eip6110/beacon-chain.md#testing
+        if let Some(ExecutionPayloadHeader::Eip6110(header)) = execution_payload_header {
+            *state.latest_execution_payload_header_eip6110_mut()? = header;
+        }
+    }
 
     Ok(state)
 }

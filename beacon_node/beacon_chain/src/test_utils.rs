@@ -450,6 +450,9 @@ where
         let deneb_time = spec.deneb_fork_epoch.map(|epoch| {
             HARNESS_GENESIS_TIME + spec.seconds_per_slot * E::slots_per_epoch() * epoch.as_u64()
         });
+        let eip6110_time = spec.eip6110_fork_epoch.map(|epoch| {
+            HARNESS_GENESIS_TIME + spec.seconds_per_slot * E::slots_per_epoch() * epoch.as_u64()
+        });
 
         let trusted_setup: TrustedSetup =
             serde_json::from_reader(eth2_network_config::TRUSTED_SETUP)
@@ -462,6 +465,7 @@ where
             DEFAULT_TERMINAL_BLOCK,
             shanghai_time,
             deneb_time,
+            eip6110_time,
             None,
             Some(JwtKey::from_slice(&DEFAULT_JWT_SECRET).unwrap()),
             spec,
@@ -489,6 +493,9 @@ where
         let deneb_time = spec.deneb_fork_epoch.map(|epoch| {
             HARNESS_GENESIS_TIME + spec.seconds_per_slot * E::slots_per_epoch() * epoch.as_u64()
         });
+        let eip6110_time = spec.eip6110_fork_epoch.map(|epoch| {
+            HARNESS_GENESIS_TIME + spec.seconds_per_slot * E::slots_per_epoch() * epoch.as_u64()
+        });
         let trusted_setup: TrustedSetup =
             serde_json::from_reader(eth2_network_config::TRUSTED_SETUP)
                 .map_err(|e| format!("Unable to read trusted setup file: {}", e))
@@ -499,6 +506,7 @@ where
             DEFAULT_TERMINAL_BLOCK,
             shanghai_time,
             deneb_time,
+            eip6110_time,
             builder_threshold,
             Some(JwtKey::from_slice(&DEFAULT_JWT_SECRET).unwrap()),
             spec.clone(),
@@ -819,7 +827,7 @@ where
             | SignedBeaconBlock::Altair(_)
             | SignedBeaconBlock::Merge(_)
             | SignedBeaconBlock::Capella(_) => (signed_block, None),
-            SignedBeaconBlock::Deneb(_) => {
+            SignedBeaconBlock::Deneb(_) | SignedBeaconBlock::Eip6110(_) => {
                 if let Some(blobs) = self
                     .chain
                     .proposal_blob_cache

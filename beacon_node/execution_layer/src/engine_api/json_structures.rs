@@ -1,4 +1,6 @@
 use super::*;
+use eth2::types::PublicKeyBytes;
+use eth2::types::SignatureBytes;
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
 use superstruct::superstruct;
@@ -6,7 +8,8 @@ use types::beacon_block_body::KzgCommitments;
 use types::blob_sidecar::Blobs;
 use types::{
     EthSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadCapella, ExecutionPayloadDeneb,
-    ExecutionPayloadMerge, FixedVector, Transactions, Unsigned, VariableList, Withdrawal,
+    ExecutionPayloadEip6110, ExecutionPayloadMerge, FixedVector, Transactions, Unsigned,
+    VariableList, Withdrawal,
 };
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -63,7 +66,7 @@ pub struct JsonPayloadIdResponse {
 }
 
 #[superstruct(
-    variants(V1, V2, V3),
+    variants(V1, V2, V3, V6110),
     variant_attributes(
         derive(Debug, PartialEq, Default, Serialize, Deserialize,),
         serde(bound = "T: EthSpec", rename_all = "camelCase"),
@@ -96,11 +99,13 @@ pub struct JsonExecutionPayload<T: EthSpec> {
     pub block_hash: ExecutionBlockHash,
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions<T>,
-    #[superstruct(only(V2, V3))]
+    #[superstruct(only(V2, V3, V6110))]
     pub withdrawals: VariableList<JsonWithdrawal, T::MaxWithdrawalsPerPayload>,
-    #[superstruct(only(V3))]
+    #[superstruct(only(V3, V6110))]
     #[serde(with = "serde_utils::u256_hex_be")]
     pub excess_data_gas: Uint256,
+    #[superstruct(only(V6110))]
+    pub deposit_receipts: VariableList<JsonDepositReceipt, T::MaxDepositReceiptsPerPayload>,
 }
 
 impl<T: EthSpec> From<ExecutionPayloadMerge<T>> for JsonExecutionPayloadV1<T> {
@@ -176,6 +181,39 @@ impl<T: EthSpec> From<ExecutionPayloadDeneb<T>> for JsonExecutionPayloadV3<T> {
         }
     }
 }
+impl<T: EthSpec> From<ExecutionPayloadEip6110<T>> for JsonExecutionPayloadV6110<T> {
+    fn from(payload: ExecutionPayloadEip6110<T>) -> Self {
+        JsonExecutionPayloadV6110 {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom,
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data,
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            transactions: payload.transactions,
+            withdrawals: payload
+                .withdrawals
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .into(),
+            excess_data_gas: payload.excess_data_gas,
+            deposit_receipts: payload
+                .deposit_receipts
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .into(),
+        }
+    }
+}
 
 impl<T: EthSpec> From<ExecutionPayload<T>> for JsonExecutionPayload<T> {
     fn from(execution_payload: ExecutionPayload<T>) -> Self {
@@ -183,6 +221,7 @@ impl<T: EthSpec> From<ExecutionPayload<T>> for JsonExecutionPayload<T> {
             ExecutionPayload::Merge(payload) => JsonExecutionPayload::V1(payload.into()),
             ExecutionPayload::Capella(payload) => JsonExecutionPayload::V2(payload.into()),
             ExecutionPayload::Deneb(payload) => JsonExecutionPayload::V3(payload.into()),
+            ExecutionPayload::Eip6110(payload) => JsonExecutionPayload::V6110(payload.into()),
         }
     }
 }
@@ -260,6 +299,39 @@ impl<T: EthSpec> From<JsonExecutionPayloadV3<T>> for ExecutionPayloadDeneb<T> {
         }
     }
 }
+impl<T: EthSpec> From<JsonExecutionPayloadV6110<T>> for ExecutionPayloadEip6110<T> {
+    fn from(payload: JsonExecutionPayloadV6110<T>) -> Self {
+        ExecutionPayloadEip6110 {
+            parent_hash: payload.parent_hash,
+            fee_recipient: payload.fee_recipient,
+            state_root: payload.state_root,
+            receipts_root: payload.receipts_root,
+            logs_bloom: payload.logs_bloom,
+            prev_randao: payload.prev_randao,
+            block_number: payload.block_number,
+            gas_limit: payload.gas_limit,
+            gas_used: payload.gas_used,
+            timestamp: payload.timestamp,
+            extra_data: payload.extra_data,
+            base_fee_per_gas: payload.base_fee_per_gas,
+            block_hash: payload.block_hash,
+            transactions: payload.transactions,
+            withdrawals: payload
+                .withdrawals
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .into(),
+            excess_data_gas: payload.excess_data_gas,
+            deposit_receipts: payload
+                .deposit_receipts
+                .into_iter()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .into(),
+        }
+    }
+}
 
 impl<T: EthSpec> From<JsonExecutionPayload<T>> for ExecutionPayload<T> {
     fn from(json_execution_payload: JsonExecutionPayload<T>) -> Self {
@@ -267,12 +339,13 @@ impl<T: EthSpec> From<JsonExecutionPayload<T>> for ExecutionPayload<T> {
             JsonExecutionPayload::V1(payload) => ExecutionPayload::Merge(payload.into()),
             JsonExecutionPayload::V2(payload) => ExecutionPayload::Capella(payload.into()),
             JsonExecutionPayload::V3(payload) => ExecutionPayload::Deneb(payload.into()),
+            JsonExecutionPayload::V6110(payload) => ExecutionPayload::Eip6110(payload.into()),
         }
     }
 }
 
 #[superstruct(
-    variants(V1, V2, V3),
+    variants(V1, V2, V3, V6110),
     variant_attributes(
         derive(Debug, PartialEq, Serialize, Deserialize),
         serde(bound = "T: EthSpec", rename_all = "camelCase")
@@ -289,9 +362,11 @@ pub struct JsonGetPayloadResponse<T: EthSpec> {
     pub execution_payload: JsonExecutionPayloadV2<T>,
     #[superstruct(only(V3), partial_getter(rename = "execution_payload_v3"))]
     pub execution_payload: JsonExecutionPayloadV3<T>,
+    #[superstruct(only(V6110), partial_getter(rename = "execution_payload_v6110"))]
+    pub execution_payload: JsonExecutionPayloadV6110<T>,
     #[serde(with = "serde_utils::u256_hex_be")]
     pub block_value: Uint256,
-    #[superstruct(only(V3))]
+    #[superstruct(only(V3, V6110))]
     pub blobs_bundle: JsonBlobsBundleV1<T>,
 }
 
@@ -312,6 +387,13 @@ impl<T: EthSpec> From<JsonGetPayloadResponse<T>> for GetPayloadResponse<T> {
             }
             JsonGetPayloadResponse::V3(response) => {
                 GetPayloadResponse::Deneb(GetPayloadResponseDeneb {
+                    execution_payload: response.execution_payload.into(),
+                    block_value: response.block_value,
+                    blobs_bundle: response.blobs_bundle.into(),
+                })
+            }
+            JsonGetPayloadResponse::V6110(response) => {
+                GetPayloadResponse::Eip6110(GetPayloadResponseEip6110 {
                     execution_payload: response.execution_payload.into(),
                     block_value: response.block_value,
                     blobs_bundle: response.blobs_bundle.into(),
@@ -351,6 +433,42 @@ impl From<JsonWithdrawal> for Withdrawal {
             validator_index: jw.validator_index,
             address: jw.address,
             amount: jw.amount,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JsonDepositReceipt {
+    pub pubkey: PublicKeyBytes,
+    pub withdrawal_credentials: Hash256,
+    #[serde(with = "serde_utils::u64_hex_be")]
+    pub amount: u64,
+    pub signature: SignatureBytes,
+    #[serde(with = "serde_utils::u64_hex_be")]
+    pub index: u64,
+}
+
+impl From<DepositReceipt> for JsonDepositReceipt {
+    fn from(deposit_receipt: DepositReceipt) -> Self {
+        Self {
+            pubkey: deposit_receipt.pubkey.decompress().unwrap().into(),
+            withdrawal_credentials: deposit_receipt.withdrawal_credentials,
+            amount: deposit_receipt.amount,
+            signature: deposit_receipt.signature,
+            index: deposit_receipt.index,
+        }
+    }
+}
+
+impl From<JsonDepositReceipt> for DepositReceipt {
+    fn from(json_deposit_receipt: JsonDepositReceipt) -> Self {
+        Self {
+            pubkey: json_deposit_receipt.pubkey,
+            withdrawal_credentials: json_deposit_receipt.withdrawal_credentials,
+            amount: json_deposit_receipt.amount,
+            signature: json_deposit_receipt.signature,
+            index: json_deposit_receipt.index,
         }
     }
 }
@@ -599,6 +717,7 @@ pub struct JsonExecutionPayloadBodyV1<E: EthSpec> {
     #[serde(with = "ssz_types::serde_utils::list_of_hex_var_list")]
     pub transactions: Transactions<E>,
     pub withdrawals: Option<VariableList<JsonWithdrawal, E::MaxWithdrawalsPerPayload>>,
+    pub deposit_receipts: Option<VariableList<JsonDepositReceipt, E::MaxDepositReceiptsPerPayload>>,
 }
 
 impl<E: EthSpec> From<JsonExecutionPayloadBodyV1<E>> for ExecutionPayloadBodyV1<E> {
@@ -608,6 +727,14 @@ impl<E: EthSpec> From<JsonExecutionPayloadBodyV1<E>> for ExecutionPayloadBodyV1<
             withdrawals: value.withdrawals.map(|json_withdrawals| {
                 Withdrawals::<E>::from(
                     json_withdrawals
+                        .into_iter()
+                        .map(Into::into)
+                        .collect::<Vec<_>>(),
+                )
+            }),
+            deposit_receipts: value.deposit_receipts.map(|json_receipts| {
+                DepositReceipts::<E>::from(
+                    json_receipts
                         .into_iter()
                         .map(Into::into)
                         .collect::<Vec<_>>(),

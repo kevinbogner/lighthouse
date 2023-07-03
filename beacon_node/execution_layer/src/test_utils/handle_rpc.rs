@@ -93,7 +93,10 @@ pub async fn handle_rpc<T: EthSpec>(
                 .unwrap())
             }
         }
-        ENGINE_NEW_PAYLOAD_V1 | ENGINE_NEW_PAYLOAD_V2 | ENGINE_NEW_PAYLOAD_V3 => {
+        ENGINE_NEW_PAYLOAD_V1
+        | ENGINE_NEW_PAYLOAD_V2
+        | ENGINE_NEW_PAYLOAD_V3
+        | ENGINE_NEW_PAYLOAD_V6110 => {
             let request = match method {
                 ENGINE_NEW_PAYLOAD_V1 => JsonExecutionPayload::V1(
                     get_param::<JsonExecutionPayloadV1<T>>(params, 0)
@@ -114,6 +117,21 @@ pub async fn handle_rpc<T: EthSpec>(
                             .or_else(|_| {
                                 get_param::<JsonExecutionPayloadV1<T>>(params, 0)
                                     .map(|jep| JsonExecutionPayload::V1(jep))
+                            })
+                    })
+                    .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
+                ENGINE_NEW_PAYLOAD_V6110 => get_param::<JsonExecutionPayloadV6110<T>>(params, 0)
+                    .map(|jep| JsonExecutionPayload::V6110(jep))
+                    .or_else(|_| {
+                        get_param::<JsonExecutionPayloadV3<T>>(params, 0)
+                            .map(|jep| JsonExecutionPayload::V3(jep))
+                            .or_else(|_| {
+                                get_param::<JsonExecutionPayloadV2<T>>(params, 0)
+                                    .map(|jep| JsonExecutionPayload::V2(jep))
+                                    .or_else(|_| {
+                                        get_param::<JsonExecutionPayloadV1<T>>(params, 0)
+                                            .map(|jep| JsonExecutionPayload::V1(jep))
+                                    })
                             })
                     })
                     .map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?,
@@ -180,6 +198,44 @@ pub async fn handle_rpc<T: EthSpec>(
                         ));
                     }
                 }
+                ForkName::Eip6110 => {
+                    if method == ENGINE_NEW_PAYLOAD_V1
+                        || method == ENGINE_NEW_PAYLOAD_V2
+                        || method == ENGINE_NEW_PAYLOAD_V3
+                    {
+                        return Err((
+                            format!("{} called after eip6110 fork!", method),
+                            GENERIC_ERROR_CODE,
+                        ));
+                    }
+                    if matches!(request, JsonExecutionPayload::V1(_)) {
+                        return Err((
+                            format!(
+                                "{} called with `ExecutionPayloadV1` after eip6110 fork!",
+                                method
+                            ),
+                            GENERIC_ERROR_CODE,
+                        ));
+                    }
+                    if matches!(request, JsonExecutionPayload::V2(_)) {
+                        return Err((
+                            format!(
+                                "{} called with `ExecutionPayloadV2` after eip6110 fork!",
+                                method
+                            ),
+                            GENERIC_ERROR_CODE,
+                        ));
+                    }
+                    if matches!(request, JsonExecutionPayload::V3(_)) {
+                        return Err((
+                            format!(
+                                "{} called with `ExecutionPayloadV3` after eip6110 fork!",
+                                method
+                            ),
+                            GENERIC_ERROR_CODE,
+                        ));
+                    }
+                }
                 _ => unreachable!(),
             };
 
@@ -215,7 +271,10 @@ pub async fn handle_rpc<T: EthSpec>(
 
             Ok(serde_json::to_value(JsonPayloadStatusV1::from(response)).unwrap())
         }
-        ENGINE_GET_PAYLOAD_V1 | ENGINE_GET_PAYLOAD_V2 | ENGINE_GET_PAYLOAD_V3 => {
+        ENGINE_GET_PAYLOAD_V1
+        | ENGINE_GET_PAYLOAD_V2
+        | ENGINE_GET_PAYLOAD_V3
+        | ENGINE_GET_PAYLOAD_V6110 => {
             let request: JsonPayloadIdRequest =
                 get_param(params, 0).map_err(|s| (s, BAD_PARAMS_ERROR_CODE))?;
             let id = request.into();
@@ -256,6 +315,21 @@ pub async fn handle_rpc<T: EthSpec>(
             {
                 return Err((
                     format!("{} called after deneb fork!", method),
+                    FORK_REQUEST_MISMATCH_ERROR_CODE,
+                ));
+            }
+            // validate method called correctly according to eip6110 fork time
+            if ctx
+                .execution_block_generator
+                .read()
+                .get_fork_at_timestamp(response.timestamp())
+                == ForkName::Eip6110
+                && (method == ENGINE_GET_PAYLOAD_V1
+                    || method == ENGINE_GET_PAYLOAD_V2
+                    || method == ENGINE_GET_PAYLOAD_V3)
+            {
+                return Err((
+                    format!("{} called after eip6110 fork!", method),
                     FORK_REQUEST_MISMATCH_ERROR_CODE,
                 ));
             }
@@ -303,6 +377,49 @@ pub async fn handle_rpc<T: EthSpec>(
                             blobs_bundle: maybe_blobs
                                 .ok_or((
                                     "No blobs returned despite V3 Payload".to_string(),
+                                    GENERIC_ERROR_CODE,
+                                ))?
+                                .into(),
+                        })
+                        .unwrap()
+                    }
+                    _ => unreachable!(),
+                }),
+                ENGINE_GET_PAYLOAD_V6110 => Ok(match JsonExecutionPayload::from(response) {
+                    JsonExecutionPayload::V1(execution_payload) => {
+                        serde_json::to_value(JsonGetPayloadResponseV1 {
+                            execution_payload,
+                            block_value: DEFAULT_MOCK_EL_PAYLOAD_VALUE_WEI.into(),
+                        })
+                        .unwrap()
+                    }
+                    JsonExecutionPayload::V2(execution_payload) => {
+                        serde_json::to_value(JsonGetPayloadResponseV2 {
+                            execution_payload,
+                            block_value: DEFAULT_MOCK_EL_PAYLOAD_VALUE_WEI.into(),
+                        })
+                        .unwrap()
+                    }
+                    JsonExecutionPayload::V3(execution_payload) => {
+                        serde_json::to_value(JsonGetPayloadResponseV3 {
+                            execution_payload,
+                            block_value: DEFAULT_MOCK_EL_PAYLOAD_VALUE_WEI.into(),
+                            blobs_bundle: maybe_blobs
+                                .ok_or((
+                                    "No blobs returned despite V3 Payload".to_string(),
+                                    GENERIC_ERROR_CODE,
+                                ))?
+                                .into(),
+                        })
+                        .unwrap()
+                    }
+                    JsonExecutionPayload::V6110(execution_payload) => {
+                        serde_json::to_value(JsonGetPayloadResponseV6110 {
+                            execution_payload,
+                            block_value: DEFAULT_MOCK_EL_PAYLOAD_VALUE_WEI.into(),
+                            blobs_bundle: maybe_blobs
+                                .ok_or((
+                                    "No blobs returned despite V6110 Payload".to_string(),
                                     GENERIC_ERROR_CODE,
                                 ))?
                                 .into(),
@@ -495,6 +612,9 @@ pub async fn handle_rpc<T: EthSpec>(
                                 .withdrawals()
                                 .ok()
                                 .map(|withdrawals| VariableList::from(withdrawals.clone())),
+                            deposit_receipts: block.deposit_receipts().ok().map(
+                                |deposit_receipts| VariableList::from(deposit_receipts.clone()),
+                            ),
                         }));
                     }
                     None => response.push(None),

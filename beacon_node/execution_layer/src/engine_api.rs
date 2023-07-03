@@ -3,14 +3,15 @@ use crate::http::{
     ENGINE_EXCHANGE_TRANSITION_CONFIGURATION_V1, ENGINE_FORKCHOICE_UPDATED_V1,
     ENGINE_FORKCHOICE_UPDATED_V2, ENGINE_GET_PAYLOAD_BODIES_BY_HASH_V1,
     ENGINE_GET_PAYLOAD_BODIES_BY_RANGE_V1, ENGINE_GET_PAYLOAD_V1, ENGINE_GET_PAYLOAD_V2,
-    ENGINE_GET_PAYLOAD_V3, ENGINE_NEW_PAYLOAD_V1, ENGINE_NEW_PAYLOAD_V2, ENGINE_NEW_PAYLOAD_V3,
+    ENGINE_GET_PAYLOAD_V3, ENGINE_GET_PAYLOAD_V6110, ENGINE_NEW_PAYLOAD_V1, ENGINE_NEW_PAYLOAD_V2,
+    ENGINE_NEW_PAYLOAD_V3, ENGINE_NEW_PAYLOAD_V6110,
 };
 use crate::BlobTxConversionError;
 use eth2::types::{SsePayloadAttributes, SsePayloadAttributesV1, SsePayloadAttributesV2};
 pub use ethers_core::types::Transaction;
 use ethers_core::utils::rlp::{self, Decodable, Rlp};
 use http::deposit_methods::RpcError;
-pub use json_structures::{JsonWithdrawal, TransitionConfigurationV1};
+pub use json_structures::{JsonDepositReceipt, JsonWithdrawal, TransitionConfigurationV1};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -19,11 +20,14 @@ use superstruct::superstruct;
 use types::beacon_block_body::KzgCommitments;
 use types::blob_sidecar::Blobs;
 pub use types::{
-    Address, EthSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadHeader,
-    ExecutionPayloadRef, FixedVector, ForkName, Hash256, Transactions, Uint256, VariableList,
-    Withdrawal, Withdrawals,
+    Address, DepositReceipt, DepositReceipts, EthSpec, ExecutionBlockHash, ExecutionPayload,
+    ExecutionPayloadHeader, ExecutionPayloadRef, FixedVector, ForkName, Hash256, Transactions,
+    Uint256, VariableList, Withdrawal, Withdrawals,
 };
-use types::{ExecutionPayloadCapella, ExecutionPayloadDeneb, ExecutionPayloadMerge, KzgProofs};
+use types::{
+    ExecutionPayloadCapella, ExecutionPayloadDeneb, ExecutionPayloadEip6110, ExecutionPayloadMerge,
+    KzgProofs,
+};
 
 pub mod auth;
 pub mod http;
@@ -53,6 +57,7 @@ pub enum Error {
     PayloadConversionLogicFlaw,
     SszError(ssz_types::Error),
     DeserializeWithdrawals(ssz_types::Error),
+    DeserializeDepositReceipts(ssz_types::Error),
     BuilderApi(builder_client::Error),
     IncorrectStateVariant,
     RequiredMethodUnsupported(&'static str),
@@ -152,7 +157,7 @@ pub struct ExecutionBlock {
 
 /// Representation of an execution block with enough detail to reconstruct a payload.
 #[superstruct(
-    variants(Merge, Capella, Deneb),
+    variants(Merge, Capella, Deneb, Eip6110),
     variant_attributes(
         derive(Clone, Debug, PartialEq, Serialize, Deserialize,),
         serde(bound = "T: EthSpec", rename_all = "camelCase"),
@@ -186,11 +191,13 @@ pub struct ExecutionBlockWithTransactions<T: EthSpec> {
     #[serde(rename = "hash")]
     pub block_hash: ExecutionBlockHash,
     pub transactions: Vec<Transaction>,
-    #[superstruct(only(Capella, Deneb))]
+    #[superstruct(only(Capella, Deneb, Eip6110))]
     pub withdrawals: Vec<JsonWithdrawal>,
-    #[superstruct(only(Deneb))]
+    #[superstruct(only(Deneb, Eip6110))]
     #[serde(with = "serde_utils::u256_hex_be")]
     pub excess_data_gas: Uint256,
+    #[superstruct(only(Eip6110))]
+    pub deposit_receipts: Vec<JsonDepositReceipt>,
 }
 
 impl<T: EthSpec> TryFrom<ExecutionPayload<T>> for ExecutionBlockWithTransactions<T> {
@@ -269,6 +276,37 @@ impl<T: EthSpec> TryFrom<ExecutionPayload<T>> for ExecutionBlockWithTransactions
                     .collect(),
                 excess_data_gas: block.excess_data_gas,
             }),
+            ExecutionPayload::Eip6110(block) => {
+                Self::Eip6110(ExecutionBlockWithTransactionsEip6110 {
+                    parent_hash: block.parent_hash,
+                    fee_recipient: block.fee_recipient,
+                    state_root: block.state_root,
+                    receipts_root: block.receipts_root,
+                    logs_bloom: block.logs_bloom,
+                    prev_randao: block.prev_randao,
+                    block_number: block.block_number,
+                    gas_limit: block.gas_limit,
+                    gas_used: block.gas_used,
+                    timestamp: block.timestamp,
+                    extra_data: block.extra_data,
+                    base_fee_per_gas: block.base_fee_per_gas,
+                    block_hash: block.block_hash,
+                    transactions: block
+                        .transactions
+                        .iter()
+                        .map(|tx| Transaction::decode(&Rlp::new(tx)))
+                        .collect::<Result<Vec<_>, _>>()?,
+                    withdrawals: Vec::from(block.withdrawals)
+                        .into_iter()
+                        .map(|withdrawal| withdrawal.into())
+                        .collect(),
+                    excess_data_gas: block.excess_data_gas,
+                    deposit_receipts: Vec::from(block.deposit_receipts)
+                        .into_iter()
+                        .map(|deposit_receipt| deposit_receipt.into())
+                        .collect(),
+                })
+            }
         };
         Ok(json_payload)
     }
@@ -363,7 +401,7 @@ pub struct ProposeBlindedBlockResponse {
 }
 
 #[superstruct(
-    variants(Merge, Capella, Deneb),
+    variants(Merge, Capella, Deneb, Eip6110),
     variant_attributes(derive(Clone, Debug, PartialEq),),
     map_into(ExecutionPayload),
     map_ref_into(ExecutionPayloadRef),
@@ -378,8 +416,10 @@ pub struct GetPayloadResponse<T: EthSpec> {
     pub execution_payload: ExecutionPayloadCapella<T>,
     #[superstruct(only(Deneb), partial_getter(rename = "execution_payload_deneb"))]
     pub execution_payload: ExecutionPayloadDeneb<T>,
+    #[superstruct(only(Eip6110), partial_getter(rename = "execution_payload_eip6110"))]
+    pub execution_payload: ExecutionPayloadEip6110<T>,
     pub block_value: Uint256,
-    #[superstruct(only(Deneb))]
+    #[superstruct(only(Deneb, Eip6110))]
     pub blobs_bundle: BlobsBundleV1<T>,
 }
 
@@ -419,6 +459,11 @@ impl<T: EthSpec> From<GetPayloadResponse<T>>
                 inner.block_value,
                 Some(inner.blobs_bundle),
             ),
+            GetPayloadResponse::Eip6110(inner) => (
+                ExecutionPayload::Eip6110(inner.execution_payload),
+                inner.block_value,
+                Some(inner.blobs_bundle),
+            ),
         }
     }
 }
@@ -433,6 +478,7 @@ impl<T: EthSpec> GetPayloadResponse<T> {
 pub struct ExecutionPayloadBodyV1<E: EthSpec> {
     pub transactions: Transactions<E>,
     pub withdrawals: Option<Withdrawals<E>>,
+    pub deposit_receipts: Option<DepositReceipts<E>>,
 }
 
 impl<E: EthSpec> ExecutionPayloadBodyV1<E> {
@@ -518,6 +564,36 @@ impl<E: EthSpec> ExecutionPayloadBodyV1<E> {
                     ))
                 }
             }
+            ExecutionPayloadHeader::Eip6110(header) => {
+                if let (Some(withdrawals), Some(deposit_receipts)) =
+                    (self.withdrawals, self.deposit_receipts)
+                {
+                    Ok(ExecutionPayload::Eip6110(ExecutionPayloadEip6110 {
+                        parent_hash: header.parent_hash,
+                        fee_recipient: header.fee_recipient,
+                        state_root: header.state_root,
+                        receipts_root: header.receipts_root,
+                        logs_bloom: header.logs_bloom,
+                        prev_randao: header.prev_randao,
+                        block_number: header.block_number,
+                        gas_limit: header.gas_limit,
+                        gas_used: header.gas_used,
+                        timestamp: header.timestamp,
+                        extra_data: header.extra_data,
+                        base_fee_per_gas: header.base_fee_per_gas,
+                        block_hash: header.block_hash,
+                        transactions: self.transactions,
+                        withdrawals,
+                        excess_data_gas: header.excess_data_gas,
+                        deposit_receipts,
+                    }))
+                } else {
+                    Err(format!(
+                        "block {} is eip6110 but payload body doesn't have withdrawals and deposit_receipts",
+                        header.block_hash
+                    ))
+                }
+            }
         }
     }
 }
@@ -534,6 +610,7 @@ pub struct EngineCapabilities {
     pub new_payload_v1: bool,
     pub new_payload_v2: bool,
     pub new_payload_v3: bool,
+    pub new_payload_v6110: bool,
     pub forkchoice_updated_v1: bool,
     pub forkchoice_updated_v2: bool,
     pub get_payload_bodies_by_hash_v1: bool,
@@ -541,6 +618,7 @@ pub struct EngineCapabilities {
     pub get_payload_v1: bool,
     pub get_payload_v2: bool,
     pub get_payload_v3: bool,
+    pub get_payload_v6110: bool,
     pub exchange_transition_configuration_v1: bool,
 }
 
@@ -555,6 +633,9 @@ impl EngineCapabilities {
         }
         if self.new_payload_v3 {
             response.push(ENGINE_NEW_PAYLOAD_V3);
+        }
+        if self.new_payload_v6110 {
+            response.push(ENGINE_NEW_PAYLOAD_V6110);
         }
         if self.forkchoice_updated_v1 {
             response.push(ENGINE_FORKCHOICE_UPDATED_V1);
@@ -576,6 +657,9 @@ impl EngineCapabilities {
         }
         if self.get_payload_v3 {
             response.push(ENGINE_GET_PAYLOAD_V3);
+        }
+        if self.get_payload_v6110 {
+            response.push(ENGINE_GET_PAYLOAD_V6110);
         }
         if self.exchange_transition_configuration_v1 {
             response.push(ENGINE_EXCHANGE_TRANSITION_CONFIGURATION_V1);

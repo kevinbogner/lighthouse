@@ -74,6 +74,7 @@ pub mod voluntary_exit;
 #[macro_use]
 pub mod slot_epoch_macros;
 pub mod config_and_preset;
+pub mod eip6110;
 pub mod execution_block_header;
 pub mod fork_context;
 pub mod participation_flags;
@@ -110,11 +111,13 @@ pub use crate::attestation_duty::AttestationDuty;
 pub use crate::attester_slashing::AttesterSlashing;
 pub use crate::beacon_block::{
     BeaconBlock, BeaconBlockAltair, BeaconBlockBase, BeaconBlockCapella, BeaconBlockDeneb,
-    BeaconBlockMerge, BeaconBlockRef, BeaconBlockRefMut, BlindedBeaconBlock, EmptyBlock,
+    BeaconBlockEip6110, BeaconBlockMerge, BeaconBlockRef, BeaconBlockRefMut, BlindedBeaconBlock,
+    EmptyBlock,
 };
 pub use crate::beacon_block_body::{
     BeaconBlockBody, BeaconBlockBodyAltair, BeaconBlockBodyBase, BeaconBlockBodyCapella,
-    BeaconBlockBodyDeneb, BeaconBlockBodyMerge, BeaconBlockBodyRef, BeaconBlockBodyRefMut,
+    BeaconBlockBodyDeneb, BeaconBlockBodyEip6110, BeaconBlockBodyMerge, BeaconBlockBodyRef,
+    BeaconBlockBodyRefMut,
 };
 pub use crate::beacon_block_header::BeaconBlockHeader;
 pub use crate::beacon_committee::{BeaconCommittee, OwnedBeaconCommittee};
@@ -131,18 +134,21 @@ pub use crate::deposit::{Deposit, DEPOSIT_TREE_DEPTH};
 pub use crate::deposit_data::DepositData;
 pub use crate::deposit_message::DepositMessage;
 pub use crate::deposit_tree_snapshot::{DepositTreeSnapshot, FinalizedExecutionBlock};
+pub use crate::eip6110::DepositReceipt;
 pub use crate::enr_fork_id::EnrForkId;
 pub use crate::eth1_data::Eth1Data;
 pub use crate::eth_spec::EthSpecId;
 pub use crate::execution_block_hash::ExecutionBlockHash;
 pub use crate::execution_block_header::ExecutionBlockHeader;
 pub use crate::execution_payload::{
-    ExecutionPayload, ExecutionPayloadCapella, ExecutionPayloadDeneb, ExecutionPayloadMerge,
-    ExecutionPayloadRef, Transaction, Transactions, Withdrawals,
+    DepositReceipts, ExecutionPayload, ExecutionPayloadCapella, ExecutionPayloadDeneb,
+    ExecutionPayloadEip6110, ExecutionPayloadMerge, ExecutionPayloadRef, Transaction, Transactions,
+    Withdrawals,
 };
 pub use crate::execution_payload_header::{
     ExecutionPayloadHeader, ExecutionPayloadHeaderCapella, ExecutionPayloadHeaderDeneb,
-    ExecutionPayloadHeaderMerge, ExecutionPayloadHeaderRef, ExecutionPayloadHeaderRefMut,
+    ExecutionPayloadHeaderEip6110, ExecutionPayloadHeaderMerge, ExecutionPayloadHeaderRef,
+    ExecutionPayloadHeaderRefMut,
 };
 pub use crate::fork::Fork;
 pub use crate::fork_context::ForkContext;
@@ -158,8 +164,9 @@ pub use crate::participation_flags::ParticipationFlags;
 pub use crate::participation_list::ParticipationList;
 pub use crate::payload::{
     AbstractExecPayload, BlindedPayload, BlindedPayloadCapella, BlindedPayloadDeneb,
-    BlindedPayloadMerge, BlindedPayloadRef, BlockType, ExecPayload, FullPayload,
-    FullPayloadCapella, FullPayloadDeneb, FullPayloadMerge, FullPayloadRef, OwnedExecPayload,
+    BlindedPayloadEip6110, BlindedPayloadMerge, BlindedPayloadRef, BlockType, ExecPayload,
+    FullPayload, FullPayloadCapella, FullPayloadDeneb, FullPayloadEip6110, FullPayloadMerge,
+    FullPayloadRef, OwnedExecPayload,
 };
 pub use crate::pending_attestation::PendingAttestation;
 pub use crate::preset::{AltairPreset, BasePreset, BellatrixPreset, CapellaPreset};
@@ -171,8 +178,9 @@ pub use crate::shuffling_id::AttestationShufflingId;
 pub use crate::signed_aggregate_and_proof::SignedAggregateAndProof;
 pub use crate::signed_beacon_block::{
     ssz_tagged_signed_beacon_block, SignedBeaconBlock, SignedBeaconBlockAltair,
-    SignedBeaconBlockBase, SignedBeaconBlockCapella, SignedBeaconBlockDeneb, SignedBeaconBlockHash,
-    SignedBeaconBlockMerge, SignedBlindedBeaconBlock,
+    SignedBeaconBlockBase, SignedBeaconBlockCapella, SignedBeaconBlockDeneb,
+    SignedBeaconBlockEip6110, SignedBeaconBlockHash, SignedBeaconBlockMerge,
+    SignedBlindedBeaconBlock,
 };
 pub use crate::signed_beacon_block_header::SignedBeaconBlockHeader;
 pub use crate::signed_blob::*;

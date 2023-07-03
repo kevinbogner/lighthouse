@@ -29,6 +29,7 @@ lcli \
 	--bellatrix-fork-epoch $BELLATRIX_FORK_EPOCH \
 	--capella-fork-epoch $CAPELLA_FORK_EPOCH \
 	--deneb-fork-epoch $DENEB_FORK_EPOCH \
+	--eip6110-fork-epoch $EIP6110_FORK_EPOCH \
 	--ttd $TTD \
 	--eth1-block-hash $ETH1_BLOCK_HASH \
 	--eth1-id $CHAIN_ID \

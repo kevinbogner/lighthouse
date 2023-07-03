@@ -14,14 +14,13 @@ use state_processing::upgrade::{upgrade_to_altair, upgrade_to_bellatrix};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use types::ExecutionBlockHash;
 use types::{
     test_utils::generate_deterministic_keypairs, Address, BeaconState, ChainSpec, Config, Epoch,
     Eth1Data, EthSpec, ExecutionPayloadHeader, ExecutionPayloadHeaderCapella,
-    ExecutionPayloadHeaderDeneb, ExecutionPayloadHeaderMerge, ExecutionPayloadHeaderRefMut,
-    ForkName, Hash256, Keypair, PublicKey, Validator,
+    ExecutionPayloadHeaderDeneb, ExecutionPayloadHeaderEip6110, ExecutionPayloadHeaderMerge,
+    ExecutionPayloadHeaderRefMut, ForkName, Hash256, Keypair, PublicKey, Validator,
 };
 
 pub fn run<T: EthSpec>(testnet_dir_path: PathBuf, matches: &ArgMatches) -> Result<(), String> {
@@ -90,6 +89,10 @@ pub fn run<T: EthSpec>(testnet_dir_path: PathBuf, matches: &ArgMatches) -> Resul
         spec.deneb_fork_epoch = Some(fork_epoch);
     }
 
+    if let Some(fork_epoch) = parse_optional(matches, "eip6110-fork-epoch")? {
+        spec.eip6110_fork_epoch = Some(fork_epoch);
+    }
+
     if let Some(ttd) = parse_optional(matches, "ttd")? {
         spec.terminal_total_difficulty = ttd;
     }
@@ -119,6 +122,10 @@ pub fn run<T: EthSpec>(testnet_dir_path: PathBuf, matches: &ArgMatches) -> Resul
                     ForkName::Deneb => {
                         ExecutionPayloadHeaderDeneb::<T>::from_ssz_bytes(bytes.as_slice())
                             .map(ExecutionPayloadHeader::Deneb)
+                    }
+                    ForkName::Eip6110 => {
+                        ExecutionPayloadHeaderEip6110::<T>::from_ssz_bytes(bytes.as_slice())
+                            .map(ExecutionPayloadHeader::Eip6110)
                     }
                 }
                 .map_err(|e| format!("SSZ decode failed: {:?}", e))
@@ -244,13 +251,11 @@ fn initialize_state_with_validators<T: EthSpec>(
         });
     let execution_payload_header = execution_payload_header.unwrap_or(default_header);
     // Empty eth1 data
+    // EIP-6110 disable Eth1Data voting by zeroing out the deposit root and block hash
     let eth1_data = Eth1Data {
-        block_hash: eth1_block_hash,
+        block_hash: Hash256::zero(),
         deposit_count: 0,
-        deposit_root: Hash256::from_str(
-            "0xd70a234731285c6804c2a4f56711ddb8c82c99740f207854891028af34e27e5e",
-        )
-        .unwrap(), // empty deposit tree root
+        deposit_root: Hash256::zero(),
     };
     let mut state = BeaconState::new(genesis_time, eth1_data, spec);
 
@@ -323,6 +328,9 @@ fn initialize_state_with_validators<T: EthSpec>(
             }
             ExecutionPayloadHeaderRefMut::Deneb(_) => {
                 return Err("Cannot start genesis from a deneb state".to_string())
+            }
+            ExecutionPayloadHeaderRefMut::Eip6110(_) => {
+                return Err("Cannot start genesis from an eip6110 state".to_string())
             }
         }
     }

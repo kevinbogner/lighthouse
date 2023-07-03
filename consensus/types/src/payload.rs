@@ -39,6 +39,7 @@ pub trait ExecPayload<T: EthSpec>: Debug + Clone + PartialEq + Hash + TreeHash +
     fn transactions(&self) -> Option<&Transactions<T>>;
     /// fork-specific fields
     fn withdrawals_root(&self) -> Result<Hash256, Error>;
+    fn deposit_receipts(&self) -> Result<DepositReceipts<T>, Error>;
 
     /// Is this a default payload with 0x0 roots for transactions and withdrawals?
     fn is_default_with_zero_roots(&self) -> bool;
@@ -82,12 +83,14 @@ pub trait AbstractExecPayload<T: EthSpec>:
     + TryInto<Self::Merge>
     + TryInto<Self::Capella>
     + TryInto<Self::Deneb>
+    + TryInto<Self::Eip6110>
 {
     type Ref<'a>: ExecPayload<T>
         + Copy
         + From<&'a Self::Merge>
         + From<&'a Self::Capella>
-        + From<&'a Self::Deneb>;
+        + From<&'a Self::Deneb>
+        + From<&'a Self::Eip6110>;
 
     type Merge: OwnedExecPayload<T>
         + Into<Self>
@@ -101,12 +104,16 @@ pub trait AbstractExecPayload<T: EthSpec>:
         + Into<Self>
         + for<'a> From<Cow<'a, ExecutionPayloadDeneb<T>>>
         + TryFrom<ExecutionPayloadHeaderDeneb<T>>;
+    type Eip6110: OwnedExecPayload<T>
+        + Into<Self>
+        + for<'a> From<Cow<'a, ExecutionPayloadEip6110<T>>>
+        + TryFrom<execution_payload_header::ExecutionPayloadHeaderEip6110<T>>;
 
     fn default_at_fork(fork_name: ForkName) -> Result<Self, Error>;
 }
 
 #[superstruct(
-    variants(Merge, Capella, Deneb),
+    variants(Merge, Capella, Deneb, Eip6110),
     variant_attributes(
         derive(
             Debug,
@@ -147,6 +154,8 @@ pub struct FullPayload<T: EthSpec> {
     pub execution_payload: ExecutionPayloadCapella<T>,
     #[superstruct(only(Deneb), partial_getter(rename = "execution_payload_deneb"))]
     pub execution_payload: ExecutionPayloadDeneb<T>,
+    #[superstruct(only(Eip6110), partial_getter(rename = "execution_payload_eip6110"))]
+    pub execution_payload: ExecutionPayloadEip6110<T>,
 }
 
 impl<T: EthSpec> From<FullPayload<T>> for ExecutionPayload<T> {
@@ -253,6 +262,18 @@ impl<T: EthSpec> ExecPayload<T> for FullPayload<T> {
             FullPayload::Deneb(ref inner) => {
                 Ok(inner.execution_payload.withdrawals.tree_hash_root())
             }
+            FullPayload::Eip6110(ref inner) => {
+                Ok(inner.execution_payload.withdrawals.tree_hash_root())
+            }
+        }
+    }
+
+    fn deposit_receipts(&self) -> Result<DepositReceipts<T>, Error> {
+        match self {
+            FullPayload::Merge(_) => Err(Error::IncorrectStateVariant),
+            FullPayload::Capella(_) => Err(Error::IncorrectStateVariant),
+            FullPayload::Deneb(_) => Err(Error::IncorrectStateVariant),
+            FullPayload::Eip6110(ref inner) => Ok(inner.execution_payload.deposit_receipts.clone()),
         }
     }
 
@@ -362,6 +383,18 @@ impl<'b, T: EthSpec> ExecPayload<T> for FullPayloadRef<'b, T> {
             FullPayloadRef::Deneb(inner) => {
                 Ok(inner.execution_payload.withdrawals.tree_hash_root())
             }
+            FullPayloadRef::Eip6110(inner) => {
+                Ok(inner.execution_payload.withdrawals.tree_hash_root())
+            }
+        }
+    }
+
+    fn deposit_receipts(&self) -> Result<DepositReceipts<T>, Error> {
+        match self {
+            FullPayloadRef::Merge(_) => Err(Error::IncorrectStateVariant),
+            FullPayloadRef::Capella(_) => Err(Error::IncorrectStateVariant),
+            FullPayloadRef::Deneb(_) => Err(Error::IncorrectStateVariant),
+            FullPayloadRef::Eip6110(inner) => Ok(inner.execution_payload.deposit_receipts.clone()),
         }
     }
 
@@ -383,6 +416,7 @@ impl<T: EthSpec> AbstractExecPayload<T> for FullPayload<T> {
     type Merge = FullPayloadMerge<T>;
     type Capella = FullPayloadCapella<T>;
     type Deneb = FullPayloadDeneb<T>;
+    type Eip6110 = FullPayloadEip6110<T>;
 
     fn default_at_fork(fork_name: ForkName) -> Result<Self, Error> {
         match fork_name {
@@ -390,6 +424,7 @@ impl<T: EthSpec> AbstractExecPayload<T> for FullPayload<T> {
             ForkName::Merge => Ok(FullPayloadMerge::default().into()),
             ForkName::Capella => Ok(FullPayloadCapella::default().into()),
             ForkName::Deneb => Ok(FullPayloadDeneb::default().into()),
+            ForkName::Eip6110 => Ok(FullPayloadEip6110::default().into()),
         }
     }
 }
@@ -410,7 +445,7 @@ impl<T: EthSpec> TryFrom<ExecutionPayloadHeader<T>> for FullPayload<T> {
 }
 
 #[superstruct(
-    variants(Merge, Capella, Deneb),
+    variants(Merge, Capella, Deneb, Eip6110),
     variant_attributes(
         derive(
             Debug,
@@ -450,6 +485,8 @@ pub struct BlindedPayload<T: EthSpec> {
     pub execution_payload_header: ExecutionPayloadHeaderCapella<T>,
     #[superstruct(only(Deneb), partial_getter(rename = "execution_payload_deneb"))]
     pub execution_payload_header: ExecutionPayloadHeaderDeneb<T>,
+    #[superstruct(only(Eip6110), partial_getter(rename = "execution_payload_eip6110"))]
+    pub execution_payload_header: ExecutionPayloadHeaderEip6110<T>,
 }
 
 impl<'a, T: EthSpec> From<BlindedPayloadRef<'a, T>> for BlindedPayload<T> {
@@ -532,6 +569,20 @@ impl<T: EthSpec> ExecPayload<T> for BlindedPayload<T> {
                 Ok(inner.execution_payload_header.withdrawals_root)
             }
             BlindedPayload::Deneb(ref inner) => Ok(inner.execution_payload_header.withdrawals_root),
+            BlindedPayload::Eip6110(ref inner) => {
+                Ok(inner.execution_payload_header.withdrawals_root)
+            }
+        }
+    }
+
+    fn deposit_receipts(&self) -> Result<DepositReceipts<T>, Error> {
+        match self {
+            BlindedPayload::Merge(_) => Err(Error::IncorrectStateVariant),
+            BlindedPayload::Capella(_) => Err(Error::IncorrectStateVariant),
+            BlindedPayload::Deneb(_) => Err(Error::IncorrectStateVariant),
+            BlindedPayload::Eip6110(ref inner) => {
+                Ok(inner.execution_payload_header.deposit_receipts.clone())
+            }
         }
     }
 
@@ -620,6 +671,20 @@ impl<'b, T: EthSpec> ExecPayload<T> for BlindedPayloadRef<'b, T> {
                 Ok(inner.execution_payload_header.withdrawals_root)
             }
             BlindedPayloadRef::Deneb(inner) => Ok(inner.execution_payload_header.withdrawals_root),
+            BlindedPayloadRef::Eip6110(inner) => {
+                Ok(inner.execution_payload_header.withdrawals_root)
+            }
+        }
+    }
+
+    fn deposit_receipts(&self) -> Result<DepositReceipts<T>, Error> {
+        match self {
+            BlindedPayloadRef::Merge(_) => Err(Error::IncorrectStateVariant),
+            BlindedPayloadRef::Capella(_) => Err(Error::IncorrectStateVariant),
+            BlindedPayloadRef::Deneb(_) => Err(Error::IncorrectStateVariant),
+            BlindedPayloadRef::Eip6110(inner) => {
+                Ok(inner.execution_payload_header.deposit_receipts.clone())
+            }
         }
     }
 
@@ -648,7 +713,8 @@ macro_rules! impl_exec_payload_common {
      $block_type_variant:ident,     // Blinded                      |   Full
      $is_default_with_empty_roots:block,
      $f:block,
-     $g:block) => {
+     $g:block,
+     $h:block) => {
         impl<T: EthSpec> ExecPayload<T> for $wrapper_type<T> {
             fn block_type() -> BlockType {
                 BlockType::$block_type_variant
@@ -706,6 +772,11 @@ macro_rules! impl_exec_payload_common {
                 let g = $g;
                 g(self)
             }
+
+            fn deposit_receipts(&self) -> Result<DepositReceipts<T>, Error> {
+                let h = $h;
+                h(self)
+            }
         }
 
         impl<T: EthSpec> From<$wrapped_type<T>> for $wrapper_type<T> {
@@ -742,6 +813,15 @@ macro_rules! impl_exec_payload_for_fork {
                         let wrapper_ref_type = BlindedPayloadRef::$fork_variant(&payload);
                         wrapper_ref_type.withdrawals_root()
                     };
+                c
+            },
+            {
+                let c: for<'a> fn(
+                    &'a $wrapper_type_header<T>,
+                ) -> Result<DepositReceipts<T>, Error> = |payload: &$wrapper_type_header<T>| {
+                    let wrapper_ref_type = BlindedPayloadRef::$fork_variant(&payload);
+                    wrapper_ref_type.deposit_receipts()
+                };
                 c
             }
         );
@@ -822,6 +902,14 @@ macro_rules! impl_exec_payload_for_fork {
                         wrapper_ref_type.withdrawals_root()
                     };
                 c
+            },
+            {
+                let c: for<'a> fn(&'a $wrapper_type_full<T>) -> Result<DepositReceipts<T>, Error> =
+                    |payload: &$wrapper_type_full<T>| {
+                        let wrapper_ref_type = FullPayloadRef::$fork_variant(&payload);
+                        wrapper_ref_type.deposit_receipts()
+                    };
+                c
             }
         );
 
@@ -890,12 +978,20 @@ impl_exec_payload_for_fork!(
     ExecutionPayloadDeneb,
     Deneb
 );
+impl_exec_payload_for_fork!(
+    BlindedPayloadEip6110,
+    FullPayloadEip6110,
+    ExecutionPayloadHeaderEip6110,
+    ExecutionPayloadEip6110,
+    Eip6110
+);
 
 impl<T: EthSpec> AbstractExecPayload<T> for BlindedPayload<T> {
     type Ref<'a> = BlindedPayloadRef<'a, T>;
     type Merge = BlindedPayloadMerge<T>;
     type Capella = BlindedPayloadCapella<T>;
     type Deneb = BlindedPayloadDeneb<T>;
+    type Eip6110 = BlindedPayloadEip6110<T>;
 
     fn default_at_fork(fork_name: ForkName) -> Result<Self, Error> {
         match fork_name {
@@ -903,6 +999,7 @@ impl<T: EthSpec> AbstractExecPayload<T> for BlindedPayload<T> {
             ForkName::Merge => Ok(BlindedPayloadMerge::default().into()),
             ForkName::Capella => Ok(BlindedPayloadCapella::default().into()),
             ForkName::Deneb => Ok(BlindedPayloadDeneb::default().into()),
+            ForkName::Eip6110 => Ok(BlindedPayloadEip6110::default().into()),
         }
     }
 }
@@ -936,6 +1033,11 @@ impl<T: EthSpec> From<ExecutionPayloadHeader<T>> for BlindedPayload<T> {
                     execution_payload_header,
                 })
             }
+            ExecutionPayloadHeader::Eip6110(execution_payload_header) => {
+                Self::Eip6110(BlindedPayloadEip6110 {
+                    execution_payload_header,
+                })
+            }
         }
     }
 }
@@ -951,6 +1053,9 @@ impl<T: EthSpec> From<BlindedPayload<T>> for ExecutionPayloadHeader<T> {
             }
             BlindedPayload::Deneb(blinded_payload) => {
                 ExecutionPayloadHeader::Deneb(blinded_payload.execution_payload_header)
+            }
+            BlindedPayload::Eip6110(blinded_payload) => {
+                ExecutionPayloadHeader::Eip6110(blinded_payload.execution_payload_header)
             }
         }
     }

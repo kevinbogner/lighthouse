@@ -20,8 +20,8 @@ use types::consts::deneb::BLOB_TX_TYPE;
 use types::transaction::{BlobTransaction, EcdsaSignature, SignedBlobTransaction};
 use types::{
     Blob, EthSpec, ExecutionBlockHash, ExecutionPayload, ExecutionPayloadCapella,
-    ExecutionPayloadDeneb, ExecutionPayloadMerge, ForkName, Hash256, Transaction, Transactions,
-    Uint256,
+    ExecutionPayloadDeneb, ExecutionPayloadEip6110, ExecutionPayloadMerge, ForkName, Hash256,
+    Transaction, Transactions, Uint256,
 };
 
 const GAS_LIMIT: u64 = 16384;
@@ -126,6 +126,7 @@ pub struct ExecutionBlockGenerator<T: EthSpec> {
      */
     pub shanghai_time: Option<u64>, // withdrawals
     pub deneb_time: Option<u64>,    // 4844
+    pub eip6110_time: Option<u64>,  // 6110
     /*
      * deneb stuff
      */
@@ -140,6 +141,7 @@ impl<T: EthSpec> ExecutionBlockGenerator<T> {
         terminal_block_hash: ExecutionBlockHash,
         shanghai_time: Option<u64>,
         deneb_time: Option<u64>,
+        eip6110_time: Option<u64>,
         kzg: Option<Kzg>,
     ) -> Self {
         let mut gen = Self {
@@ -155,6 +157,7 @@ impl<T: EthSpec> ExecutionBlockGenerator<T> {
             payload_ids: <_>::default(),
             shanghai_time,
             deneb_time,
+            eip6110_time,
             blobs_bundles: <_>::default(),
             kzg: kzg.map(Arc::new),
         };
@@ -189,11 +192,14 @@ impl<T: EthSpec> ExecutionBlockGenerator<T> {
     }
 
     pub fn get_fork_at_timestamp(&self, timestamp: u64) -> ForkName {
-        match self.deneb_time {
-            Some(fork_time) if timestamp >= fork_time => ForkName::Deneb,
-            _ => match self.shanghai_time {
-                Some(fork_time) if timestamp >= fork_time => ForkName::Capella,
-                _ => ForkName::Merge,
+        match self.eip6110_time {
+            Some(fork_time) if timestamp >= fork_time => ForkName::Eip6110,
+            _ => match self.deneb_time {
+                Some(fork_time) if timestamp >= fork_time => ForkName::Deneb,
+                _ => match self.shanghai_time {
+                    Some(fork_time) if timestamp >= fork_time => ForkName::Capella,
+                    _ => ForkName::Merge,
+                },
             },
         }
     }
@@ -576,6 +582,28 @@ impl<T: EthSpec> ExecutionBlockGenerator<T> {
                                     excess_data_gas: Uint256::one(),
                                 })
                             }
+                            ForkName::Eip6110 => {
+                                ExecutionPayload::Eip6110(ExecutionPayloadEip6110 {
+                                    parent_hash: forkchoice_state.head_block_hash,
+                                    fee_recipient: pa.suggested_fee_recipient,
+                                    receipts_root: Hash256::repeat_byte(42),
+                                    state_root: Hash256::repeat_byte(43),
+                                    logs_bloom: vec![0; 256].into(),
+                                    prev_randao: pa.prev_randao,
+                                    block_number: parent.block_number() + 1,
+                                    gas_limit: GAS_LIMIT,
+                                    gas_used: GAS_USED,
+                                    timestamp: pa.timestamp,
+                                    extra_data: "block gen was here".as_bytes().to_vec().into(),
+                                    base_fee_per_gas: Uint256::one(),
+                                    // FIXME(4844): maybe this should be set to something?
+                                    block_hash: ExecutionBlockHash::zero(),
+                                    transactions: vec![].into(),
+                                    withdrawals: pa.withdrawals.clone().into(),
+                                    excess_data_gas: Uint256::one(),
+                                    deposit_receipts: vec![].into(),
+                                })
+                            }
                             _ => unreachable!(),
                         }
                     }
@@ -583,7 +611,7 @@ impl<T: EthSpec> ExecutionBlockGenerator<T> {
 
                 match execution_payload.fork_name() {
                     ForkName::Base | ForkName::Altair | ForkName::Merge | ForkName::Capella => {}
-                    ForkName::Deneb => {
+                    ForkName::Deneb | ForkName::Eip6110 => {
                         // get random number between 0 and Max Blobs
                         let num_blobs = rand::random::<usize>() % T::max_blobs_per_block();
                         let (bundle, transactions) = self.generate_random_blobs(num_blobs)?;
@@ -766,6 +794,7 @@ mod test {
             TERMINAL_DIFFICULTY.into(),
             TERMINAL_BLOCK,
             ExecutionBlockHash::zero(),
+            None,
             None,
             None,
             None,

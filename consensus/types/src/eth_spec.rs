@@ -108,6 +108,7 @@ pub trait EthSpec:
     type MaxBlobsPerBlock: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type FieldElementsPerBlob: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     type BytesPerFieldElement: Unsigned + Clone + Sync + Send + Debug + PartialEq;
+    type MaxDepositReceiptsPerPayload: Unsigned + Clone + Sync + Send + Debug + PartialEq;
     /*
      * Derived values (set these CAREFULLY)
      */
@@ -251,6 +252,11 @@ pub trait EthSpec:
         Self::MaxWithdrawalsPerPayload::to_usize()
     }
 
+    /// Returns the `MAX_DEPOSIT_RECEIPTS_PER_PAYLOAD` constant for this specification.
+    fn max_deposit_receipts_per_payload() -> usize {
+        Self::MaxDepositReceiptsPerPayload::to_usize()
+    }
+
     /// Returns the `MAX_BLOBS_PER_BLOCK` constant for this specification.
     fn max_blobs_per_block() -> usize {
         Self::MaxBlobsPerBlock::to_usize()
@@ -303,6 +309,7 @@ impl EthSpec for MainnetEthSpec {
     type SlotsPerEth1VotingPeriod = U2048; // 64 epochs * 32 slots per epoch
     type MaxBlsToExecutionChanges = U16;
     type MaxWithdrawalsPerPayload = U16;
+    type MaxDepositReceiptsPerPayload = U8192;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::mainnet()
@@ -352,7 +359,8 @@ impl EthSpec for MinimalEthSpec {
         MaxExtraDataBytes,
         MaxBlsToExecutionChanges,
         MaxBlobsPerBlock,
-        BytesPerFieldElement
+        BytesPerFieldElement,
+        MaxDepositReceiptsPerPayload
     });
 
     fn default_spec() -> ChainSpec {
@@ -402,6 +410,7 @@ impl EthSpec for GnosisEthSpec {
     type FieldElementsPerBlob = U4096;
     type BytesPerFieldElement = U32;
     type BytesPerBlob = U131072;
+    type MaxDepositReceiptsPerPayload = U8192;
 
     fn default_spec() -> ChainSpec {
         ChainSpec::gnosis()
